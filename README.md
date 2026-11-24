@@ -6,7 +6,7 @@ An educational 2D pixel-art mystery game, and the platform education centers use
 | Part | Folder | Address in development |
 | --- | --- | --- |
 | Game (Phaser 3, TypeScript, Vite) | `game/` | http://localhost:5174 |
-| Panels: super admin, center, student (React, Vite) | `apps/web/` | http://localhost:5173 |
+| Panels: super admin, center, teacher, student (React, Vite) | `apps/web/` | http://localhost:5173 |
 | API (NestJS, Prisma, PostgreSQL) | `apps/backend/` | http://localhost:3000/api/v1 (docs: `/api/docs`) |
 | Shared game design data and validation | `packages/` | |
 
@@ -24,9 +24,14 @@ Demo sign-in (development seed only, password `LastLesson-2026` unless `SEED_PAS
 
 | Who | How |
 | --- | --- |
-| Super admin | `/staff`: `super@lastlesson.dev` |
-| Center admin | `/staff`: `admin@lastlesson.dev` (second center: `riverside@lastlesson.dev`) |
+| Super admin | `/login`: `super@lastlesson.dev` |
+| Teacher | `/login`: `teacher@lastlesson.dev` |
+| Center admin | `/login`: `admin@lastlesson.dev` (second center: `riverside@lastlesson.dev`) |
 | Student | `/`: code `LL-PLAY-2026` (known student) or `LL-DEMO-2026` (group code, asks for a name) |
+
+A class plays together without accounts: the teacher opens a room, players open `/join` and type six digits.
+
+Interface languages: English, Russian, Uzbek, switchable for every role and in the game. `node scripts/i18n-missing.mjs` lists texts without a translation.
 
 `pnpm db:demo` lets the demo students play through the real API, so dashboards have data.
 

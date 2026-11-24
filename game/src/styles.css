@@ -185,7 +185,7 @@ kbd { font: inherit; background: var(--paper); color: var(--ink); padding: 0 the
 /* touch */
 .touching #prompt { display: none; }
 .touching #coach { white-space: normal; text-align: center; max-width: theme('spacing.200'); width: max-content; bottom: theme('spacing.12'); }
-.touching #roomname { bottom: auto; top: theme('spacing.24'); }
+.touching #roomname { bottom: auto; top: theme('spacing.50'); left: 50%; transform: translateX(-50%); }
 .veil, .note, .device, .report, .menu { touch-action: pan-y; overscroll-behavior: contain; }
 @keyframes turn { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(90deg); } }
 @media (prefers-reduced-motion: reduce) { .shake .device, .talk.done .next { animation: none; } }

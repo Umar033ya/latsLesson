@@ -49,19 +49,49 @@ export interface Figure {
   tone?: 'plain' | 'good' | 'warn';
 }
 export const Figures = ({ items }: { items: Figure[] }) => (
-  <dl className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-[repeat(auto-fit,minmax(170px,1fr))]">
+  <dl className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-[repeat(auto-fit,minmax(190px,1fr))]">
     {items.map(({ label, value, sub, icon: Icon, trend, tone }) => (
-      <div key={label} className="sheet relative overflow-hidden p-4">
-        <dt className="flex items-center justify-between gap-2 text-[13px] text-soft">
-          {label}
-          {Icon && <Icon size={18} aria-hidden="true" className={tone === 'warn' ? 'text-pencil' : 'text-accent'} />}
-        </dt>
-        <dd className={clsx('mt-1.5 text-[26px] font-bold leading-none tabular-nums', tone === 'warn' && 'text-pencil-dark')}>{value}</dd>
-        {sub && <dd className="mt-1.5 text-[13px] text-soft">{sub}</dd>}
-        {trend && trend.some(Boolean) && <Spark values={trend} />}
+      <div key={label} className="sheet flex min-w-0 flex-col overflow-hidden p-4 sm:p-5">
+        <div className="flex items-center gap-3">
+          {Icon && <span className={clsx('grid h-10 w-10 shrink-0 place-items-center rounded-xl', tone === 'warn' ? 'bg-pencil-pale text-pencil-dark' : 'bg-accent-soft text-accent')}><Icon size={20} aria-hidden="true" /></span>}
+          <dt className="min-w-0 text-[13px] leading-tight text-soft">{label}</dt>
+        </div>
+        <dd className={clsx('mt-3 text-[30px] font-bold leading-none tabular-nums', tone === 'warn' && 'text-pencil-dark')}>{value}</dd>
+        {sub && <dd className="mt-2 text-[13px] text-soft">{sub}</dd>}
+        {trend && trend.some(Boolean) && <div className="mt-auto pt-2"><Spark values={trend} /></div>}
       </div>
     ))}
   </dl>
+);
+
+/** Initials on a colour that always belongs to the same name. */
+const AVATARS = ['bg-moss-pale text-moss', 'bg-amber-pale text-amber-dark', 'bg-sky-pale text-sky', 'bg-pencil-pale text-pencil-dark', 'bg-accent-soft text-accent'];
+export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+  const clean = name.trim();
+  const hash = [...clean].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const initials = clean.split(/\s+/).slice(0, 2).map((w) => w.charAt(0)).join('').toUpperCase();
+  return <span aria-hidden="true" className={clsx('grid shrink-0 place-items-center rounded-full font-bold', size === 'sm' ? 'h-7 w-7 text-[11px]' : 'h-9 w-9 text-[13px]', AVATARS[hash % AVATARS.length])}>{initials || '?'}</span>;
+}
+
+/** A percentage as a number with a short bar, for table cells. */
+export function Meter({ value }: { value: number | null | undefined }) {
+  if (value === null || value === undefined) return <span className="text-soft">{tr('No data')}</span>;
+  const v = Math.round(value);
+  return (
+    <span className="flex items-center gap-2.5">
+      <span className="h-1.5 w-16 rounded-full bg-track"><span className={clsx('block h-full rounded-full', v < 70 ? 'bg-s2' : 'bg-s1')} style={{ width: `${Math.max(3, v)}%` }} /></span>
+      <span className="tabular-nums">{v}%</span>
+    </span>
+  );
+}
+
+/** An on/off setting. Lists of choices use Check instead. */
+export const Toggle = ({ label, checked, onChange, hint }: { label: string; checked: boolean; onChange: (v: boolean) => void; hint?: string }) => (
+  <label className="flex cursor-pointer items-center justify-between gap-4 py-1.5">
+    <span>{label}{hint && <span className="block text-[13px] text-soft">{hint}</span>}</span>
+    <input type="checkbox" role="switch" className="peer sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <span aria-hidden="true" className="relative h-6 w-11 shrink-0 rounded-full bg-track transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-sheet after:shadow after:transition-transform peer-checked:bg-accent peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-accent/40" />
+  </label>
 );
 
 function Spark({ values }: { values: number[] }) {
@@ -79,7 +109,7 @@ export const Tag = ({ tone = 'grey', children }: { tone?: 'grey' | 'green' | 're
   <span className={clsx('tag', { grey: 'bg-well text-soft ring-1 ring-inset ring-rule', green: 'bg-moss-pale text-moss', red: 'bg-pencil-pale text-pencil-dark', amber: 'bg-amber-pale text-amber-dark', blue: 'bg-sky-pale text-sky' }[tone])}>{children}</span>
 );
 
-const TONES: Record<string, 'green' | 'red' | 'amber' | 'grey' | 'blue'> = { ACTIVE: 'green', PUBLISHED: 'green', COMPLETED: 'green', ESCAPED: 'green', DISMISSED: 'green', SUSPENDED: 'red', REVOKED: 'red', EXPIRED: 'red', DETAINED: 'red', DRAFT: 'amber', PAUSED: 'amber', IN_PROGRESS: 'blue', INACTIVE: 'grey', ABANDONED: 'grey', ARCHIVED: 'grey', USED_UP: 'grey', LEFT: 'grey', TIMEOUT: 'amber' };
+const TONES: Record<string, 'green' | 'red' | 'amber' | 'grey' | 'blue'> = { ACTIVE: 'green', PUBLISHED: 'green', COMPLETED: 'green', ESCAPED: 'green', DISMISSED: 'green', SUSPENDED: 'red', REVOKED: 'red', EXPIRED: 'red', DETAINED: 'red', DRAFT: 'amber', WAITING: 'amber', RUNNING: 'green', FINISHED: 'grey', PAUSED: 'amber', IN_PROGRESS: 'blue', INACTIVE: 'grey', ABANDONED: 'grey', ARCHIVED: 'grey', USED_UP: 'grey', LEFT: 'grey', TIMEOUT: 'amber' };
 export const Status = ({ value }: { value: string }) => <Tag tone={TONES[value] ?? 'grey'}>{tr(words(value))}</Tag>;
 
 export function Field({ label, error, hint, children }: { label: string; error?: string; hint?: ReactNode; children: (id: string) => ReactNode }) {
@@ -246,8 +276,8 @@ export const Hero = ({ title, text, children, aside }: { title: string; text: Re
 
 /** Short activity list with relative time. */
 export const Feed = ({ items }: { items: Array<{ key: string; text: ReactNode; who?: string; at: string }> }) => (
-  <ol className="relative space-y-3.5 border-l border-rule pl-4">
-    {items.map((i) => <li key={i.key} className="relative text-sm"><i className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-sheet bg-accent" />{i.text}<span className="block text-[13px] text-soft">{[i.who, ago(i.at)].filter(Boolean).join(', ')}</span></li>)}
+  <ol className="space-y-3.5">
+    {items.map((i) => <li key={i.key} className="flex gap-3 text-sm"><Avatar size="sm" name={i.who ?? '?'} /><span className="min-w-0 pt-0.5">{i.text}<span className="block text-[13px] text-soft">{[i.who, ago(i.at)].filter(Boolean).join(', ')}</span></span></li>)}
   </ol>
 );
 
@@ -270,9 +300,9 @@ export const confirmed = (text: string) => window.confirm(text);
 export async function copy(text: string) {
   try {
     await navigator.clipboard.writeText(text);
-    toast.success('Copied');
+    toast.success(tr('Copied'));
   } catch {
-    toast.error('Copying is blocked by the browser');
+    toast.error(tr('Copying is blocked by the browser'));
   }
 }
 export function download(name: string, content: string, type = 'application/json') {

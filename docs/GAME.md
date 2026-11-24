@@ -23,6 +23,12 @@ Five register pages are hidden. With all five, the player can ring the bell and 
 
 **Fairness.** A question that runs out of tries opens anyway, loudly, so nobody gets stuck. Dialogues and notes stop the school. Center settings decide whether questions do.
 
-**Controls.** WASD or arrows, Shift to run, E to use, F torch, R battery, Q chalk, Esc break. Touch controls appear on phones. Settings: volume, text speed, brightness, no flashes, simple lighting.
+**Learning.** A short lesson precedes the first question of each topic, the notebook (J) keeps what was learned, hiding asks a quick question that keeps the player quiet, and the report explains every mistake. An arrow points to the next task.
+
+**Together.** In a room classmates see each other on the map with coloured scarves and names. V opens a wheel with eight ready phrases; each player reads them in their own language. A clock and the places are in the corner, and the final table shows who got out first and in how many minutes and seconds.
+
+**Controls.** WASD or arrows, Shift to run, E to use, F torch, R battery, Q chalk, J notebook, V phrases, Esc break. On phones: a stick, a round action button, buttons for torch, battery, chalk, phrases, notebook, full screen and break; held upright, the phone asks to be turned. Settings: volume, text speed, brightness, no flashes, simple lighting.
+
+**Styles.** Tailwind with one spacing unit per game pixel (`tailwind.config.js`), so the interface scales with the art.
 
 **Code.** `world/` is pure logic with tests (map, paths, AI, state). `scenes/` is Phaser. `ui/` is DOM (dialogue, devices, menus), readable by keyboard and screen readers. `platform/` is the only code that talks to the network.

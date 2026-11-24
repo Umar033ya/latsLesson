@@ -61,6 +61,7 @@ export function Home() {
           {d.announcement && <p className="mt-4 border-l-4 border-lamp bg-night-2 p-3">{d.announcement}</p>}
           {preparationId && <p className="mt-4 border-l-4 border-[#4c7763] bg-night-2 p-3">{tr('You are prepared. The questions inside will not repeat your practice.')}</p>}
           {launch.error && <p className="mt-4 text-[#f09a86]" role="alert">{errorText(launch.error)}</p>}
+          <Link className="nbtn-line mt-5 border-lamp !text-lamp" to="/join">{tr('Join a room')}</Link>
           <div className="mt-7 space-y-5">
             {d.campaigns.map((c: any) => {
               const theme = THEMES.find((t) => t.id === c.theme) ?? THEMES[0];

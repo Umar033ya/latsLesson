@@ -39,12 +39,12 @@ export class ApiError extends Error {
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 let refreshing: Promise<boolean> | null = null;
 
-async function raw(method: Method, path: string, body?: unknown): Promise<Response> {
+async function raw(method: Method, path: string, body?: unknown, token = accessToken): Promise<Response> {
   try {
     return await fetch(BASE + path, {
       method,
       credentials: 'include',
-      headers: { 'X-LL-Client': 'web', 'X-LL-Lang': langHeader, ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
+      headers: { 'X-LL-Client': 'web', 'X-LL-Lang': langHeader, ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
@@ -65,16 +65,27 @@ async function refresh(): Promise<boolean> {
   return refreshing;
 }
 
+async function failure(res: Response): Promise<ApiError> {
+  const error = ((await res.json().catch(() => null)) as { error?: { code: string; message: string; details?: { fields?: Record<string, string[]> } } } | null)?.error;
+  return new ApiError(error?.code ?? 'ERROR', error?.message ?? 'The server could not complete the request. Try again.', res.status, error?.details?.fields);
+}
+
+/** A request with its own token (a room pass). The signed-in account is not involved. */
+export async function callAs<T>(token: string | null, method: Method, path: string, body?: unknown): Promise<T> {
+  const res = await raw(method, path, body, token);
+  if (!res.ok) throw await failure(res);
+  return (await res.json()) as T;
+}
+
 export async function call<T>(method: Method, path: string, body?: unknown): Promise<T> {
   let res = await raw(method, path, body);
   if (res.status === 401 && accessToken && !path.startsWith('/auth/login') && !path.startsWith('/auth/code') && (await refresh())) res = await raw(method, path, body);
   if (res.ok) return (await res.json()) as T;
-  const error = ((await res.json().catch(() => null)) as { error?: { code: string; message: string; details?: { fields?: Record<string, string[]> } } } | null)?.error;
   if (res.status === 401 && useAuth.getState().me) {
     accessToken = null;
     useAuth.setState({ me: null });
   }
-  throw new ApiError(error?.code ?? 'ERROR', error?.message ?? 'The server could not complete the request. Try again.', res.status, error?.details?.fields);
+  throw await failure(res);
 }
 
 export const get = <T>(path: string, params?: Record<string, string | number | undefined | null>) => {

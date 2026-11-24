@@ -141,6 +141,7 @@ export class School extends Phaser.Scene {
     this.unlisten = [];
     this.s = parseState(d.checkpoint?.state, d.gameplay.lives);
     this.grid = new Grid();
+    if (d.lobby && !d.checkpoint) this.spreadOut(d.lobby.color);
     this.desk = new QuestionDesk(this.session, this.audio);
     this.questions = new Map(d.questions.map((q) => [q.gateId, q]));
     this.attempts = new Map(d.progress.map((p) => [p.gateId, p.attempts]));
@@ -205,6 +206,14 @@ export class School extends Phaser.Scene {
     if (import.meta.env.DEV) (window as unknown as { __school: School }).__school = this;
     void this.begin();
     if (lobby) void this.stayInTouch();
+  }
+
+  /** A class does not start on one tile: everybody gets a free place near the first desk. */
+  private spreadOut(seat: number) {
+    const spots = [0, 2].flatMap((dy) => [0, 1, -1, 2, -2, 3, -3, 4].map((dx) => ({ x: this.s.x + dx * 22, y: this.s.y + dy * 16 })));
+    const free = spots.filter((p) => !this.grid.hits(p.x, p.y - HH, HW, HH) && this.grid.path(this.s.x, this.s.y - 4, p.x, p.y - 4));
+    const spot = free[seat % Math.max(1, free.length)];
+    if (spot) Object.assign(this.s, spot);
   }
 
   private dispose() {

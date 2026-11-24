@@ -12,6 +12,7 @@ One Vercel project serves everything from one origin: panels at `/`, the game at
 | `WEB_ORIGIN` | `https://your-domain` |
 | `GAME_URL` | `https://your-domain/play/` |
 | `TRUST_PROXY` | `1` |
+| `GOOGLE_CLIENT_ID` | optional, see below |
 | `AI_PROVIDER`, `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` | optional |
 
 4. **Deploy.** Production builds run `prisma migrate deploy`.
@@ -22,6 +23,14 @@ NODE_ENV=production SEED_PASSWORD=... DATABASE_URL=... DATABASE_URL_UNPOOLED=...
 ```
 
 The production seed creates accounts and content but no demo access codes.
+
+## Google sign-in (optional)
+
+1. Google Cloud console, APIs and Services, Credentials, Create credentials, OAuth client ID, type "Web application".
+2. Authorised JavaScript origins: `https://your-domain` and, for development, `http://localhost:5173`. No redirect URI is needed.
+3. Put the client id into `GOOGLE_CLIENT_ID`. It is public; the client secret is not used.
+
+Without the variable the button is hidden and everything else works.
 
 What has been verified: `pnpm vercel:build` and the function entry `api/index.js` with production settings, locally. The first real deployment still has to be done.
 

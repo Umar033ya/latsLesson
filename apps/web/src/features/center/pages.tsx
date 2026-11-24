@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { CheckCircle2, Circle, Clock, Gamepad2, KeyRound, Map as MapIcon, Target, Users } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Gamepad2, DoorOpen, KeyRound, Map as MapIcon, Target, Users } from 'lucide-react';
 import { THEMES } from '@last-lesson/scenario';
 import { GameplayFields } from '../../components/Gameplay';
-import { Area, Bars, Check, Choice, confirmed, copy, DayChart, Dialog, download, Empty, Feed, Figures, Hero, Load, Page, Pager, Section, Split, Status, Text, useAction } from '../../components/ui';
+import { Area, Avatar, Bars, Check, Choice, confirmed, copy, DayChart, Dialog, download, Empty, Feed, Figures, Hero, Load, Meter, Page, Pager, Section, Split, Status, Text, useAction } from '../../components/ui';
 import { del, get, patch, post, put, useAuth } from '../../lib/api';
 import { plural, tr } from '../../lib/i18n';
 import { OUTCOME, ago, day, fromDateInput, mins, pct, toDateInput, when, words } from '../../lib/format';
@@ -38,7 +38,8 @@ export function Dashboard() {
         return (
           <Page title={d.center.name} bare>
             <Hero title={tr('Welcome, {0}', { 0: me?.firstName ?? '' })} text={weekSessions ? tr('{0} sessions this week. {1}', { 0: weekSessions, 1: a.weakTopics[0] ? tr('The topic that needs you most is below.') : tr('No weak topics right now.') }) : tr('The school is quiet this week. Give a group a campaign to start.')} aside={<div className="text-right"><p className="text-sm text-fog">{d.center.plan}</p>{d.center.subscriptionEndsAt && <p className="font-dot text-lamp">{tr('until {0}', { 0: day(d.center.subscriptionEndsAt) })}</p>}</div>}>
-              <Link className="btn bg-lamp text-night hover:opacity-90" to="/center/campaigns"><MapIcon size={16} />{tr('Campaigns')}</Link>
+              <Link className="btn bg-lamp text-night hover:opacity-90" to="/center/rooms"><DoorOpen size={16} />{tr('Open a room')}</Link>
+              <Link className="btn border border-night-4 bg-night-2/80 text-bone hover:border-lamp" to="/center/campaigns"><MapIcon size={16} />{tr('Campaigns')}</Link>
               <Link className="btn border border-night-4 bg-night-2/80 text-bone hover:border-lamp" to="/center/codes"><KeyRound size={16} />{tr('Access codes')}</Link>
               <Link className="btn border border-night-4 bg-night-2/80 text-bone hover:border-lamp" to="/center/students"><Users size={16} />{tr('Add students')}</Link>
             </Hero>
@@ -85,7 +86,7 @@ export function Students() {
       <Load q={q}>
         {(d) => d.items.length ? (
           <div className="sheet overflow-x-auto"><table className="reg min-w-[760px]"><thead><tr><th>{tr('Student')}</th><th>{tr('Group')}</th><th>{tr('Code')}</th><th>{tr('Finished')}</th><th>{tr('Correct')}</th><th>{tr('Last seen')}</th><th /></tr></thead><tbody>
-            {d.items.map((s: any) => <tr key={s.id} className={s.status === 'INACTIVE' ? 'opacity-60' : ''}><td><Link className="font-semibold hover:underline" to={`/center/students/${s.id}`}>{s.firstName} {s.lastName}</Link> {s.status === 'INACTIVE' && <Status value="INACTIVE" />}</td><td>{s.group?.name ?? tr('No group')}</td><td className="font-dot">{s.code && `...${s.code.hint}`}</td><td>{s.completed}</td><td>{pct(s.accuracy)}</td><td>{s.lastActiveAt ? day(s.lastActiveAt) : tr('Never')}</td><td className="text-right"><button className="btn-quiet" onClick={() => (!s.code || confirmed(tr('The current code will stop working. Issue a new one?'))) && newCode.mutate(s)}>{tr('New code')}</button></td></tr>)}
+            {d.items.map((s: any) => <tr key={s.id} className={s.status === 'INACTIVE' ? 'opacity-60' : ''}><td><span className="flex items-center gap-3"><Avatar name={`${s.firstName} ${s.lastName}`} /><span><Link className="font-semibold hover:underline" to={`/center/students/${s.id}`}>{s.firstName} {s.lastName}</Link> {s.status === 'INACTIVE' && <Status value="INACTIVE" />}</span></span></td><td>{s.group?.name ?? tr('No group')}</td><td className="font-dot">{s.code && `...${s.code.hint}`}</td><td>{s.completed}</td><td><Meter value={s.accuracy} /></td><td>{s.lastActiveAt ? day(s.lastActiveAt) : tr('Never')}</td><td className="text-right"><button className="btn-quiet" onClick={() => (!s.code || confirmed(tr('The current code will stop working. Issue a new one?'))) && newCode.mutate(s)}>{tr('New code')}</button></td></tr>)}
           </tbody></table></div>
         ) : <Empty title={tr('No students here')}>{tr('Add a list of names, or share a group code and let students sign the register themselves.')}</Empty>}
       </Load>

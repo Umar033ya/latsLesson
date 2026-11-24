@@ -5,10 +5,13 @@
 | Password hashing | argon2id | `auth.service.ts` |
 | Session handling | 15 min access token in memory; rotating refresh token in an httpOnly SameSite cookie; reuse closes the family | tests: authentication |
 | CSRF | Cookie endpoints need `X-LL-Client` and a known Origin; all others need a bearer token | tests: authentication |
-| Brute force | Database-backed rate limits on sign-in, codes, tickets; account lock after 8 failures; decoy hash for unknown accounts | tests: authentication |
+| Brute force | Database-backed limits count wrong guesses (a whole class may share one address) under an atomic ceiling on all attempts; account lock after 8 failures; decoy hash for unknown accounts | tests: authentication |
 | Authorization | Deny by default: every controller names its roles | `guards.ts` |
-| Tenant isolation | `resolveOrg`, `studentOrg`, ownership checks; foreign ids answer 404 | tests: tenant isolation |
-| Role escalation | Registration is off by default and always creates a student; only super admins create admins | tests |
+| Tenant isolation | `resolveOrg`, `hostOrg`, `studentOrg`, ownership checks; foreign ids answer 404 | tests: tenant isolation |
+| Role escalation | The role is never read from a request: a code creates a student, center registration creates the admin of a new trial center, only admins create teachers | tests: registration, teachers |
+| Account takeover | An access code can add an e-mail only in the center that owns the profile; linking Google needs the password; a Google e-mail is never matched to a password account | tests: profile ownership, google sign-in |
+| Google sign-in | ID token checked on the server by the official library: signature, audience, expiry, verified e-mail | `google-identity.ts` |
+| Rooms | Separate token audience, six-digit codes valid only while open, counted guesses, phrases from a fixed list, nicknames limited to letters and digits, race time by the server clock | tests: rooms |
 | Access codes | 40 random bits, stored as HMAC with a server secret, expiry, use limit (atomic), revocation | tests: student access codes |
 | Input validation | zod on every body and query; uuid pipes on ids; 1 MB body limit | tests |
 | SQL injection | Prisma; raw SQL only through tagged templates | `analytics.service.ts`, `rate-limit.ts` |

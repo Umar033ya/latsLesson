@@ -1,12 +1,13 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
+import { GoogleSignIn, useAuthOptions } from '../../components/Google';
 import { LanguageSwitch } from '../../components/Preferences';
 import { Wordmark } from '../../components/Shell';
 import { copy, fieldError, Text } from '../../components/ui';
-import { get, homeOf, post, startSession, useAuth } from '../../lib/api';
+import { homeOf, post, startSession, useAuth } from '../../lib/api';
 import { tr, errorText, getLanguage, languageChosen, setLanguage } from '../../lib/i18n';
+import { isRoomCode } from '../../lib/room';
 import { toLocale } from '@last-lesson/scenario';
 
 interface CodeReply {
@@ -16,14 +17,6 @@ interface CodeReply {
   center?: { name: string; logoUrl: string | null; accent: string };
   group?: string | null;
 }
-interface Options {
-  centerSignup: boolean;
-  studentSignup: boolean;
-  trialDays: number;
-  supportEmail: string;
-}
-const useOptions = () => useQuery({ queryKey: ['auth-options'], queryFn: () => get<Options>('/auth/options'), staleTime: 60_000 });
-
 /** Opens the session and, on a device without its own choice, switches to the language saved in the account. */
 async function enter(token: string, nav: (to: string) => void) {
   const me = await startSession(token);
@@ -47,6 +40,7 @@ export function CodePage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (isRoomCode(code)) return nav(`/join?code=${code.replace(/\D/g, '')}`);
     setError('');
     setBusy(true);
     try {
@@ -66,7 +60,7 @@ export function CodePage() {
     <div className="night relative flex flex-col">
       <div className="absolute inset-0 bg-cover bg-center opacity-90 [image-rendering:pixelated]" style={{ backgroundImage: 'url(/art/title.png)' }} aria-hidden="true" />
       <div className="absolute inset-0 bg-[#05060a]/35" aria-hidden="true" />
-      <header className="relative flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-[8vw]"><LanguageSwitch dark /><nav className="flex flex-wrap gap-2"><Link to="/login" className="nbtn-line bg-night-2/80">{tr('Sign in')}</Link><Link to="/register" className="nbtn-line bg-night-2/80">{tr('Create account')}</Link></nav></header>
+      <header className="relative flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-[8vw]"><LanguageSwitch dark /><nav className="flex flex-wrap gap-2"><Link to="/join" className="nbtn-line border-lamp bg-night-2/80 !text-lamp">{tr('Join a room')}</Link><Link to="/login" className="nbtn-line bg-night-2/80">{tr('Sign in')}</Link><Link to="/register" className="nbtn-line bg-night-2/80">{tr('Create account')}</Link></nav></header>
       <main className="relative flex flex-1 flex-col justify-center px-5 pb-16 pt-6 sm:px-[8vw]">
         <h1><Wordmark className="text-[clamp(52px,10vw,112px)] text-bone drop-shadow-[0_4px_0_#05060a]" /></h1>
         <p className="mb-8 mt-2 font-dot text-xl text-lamp">{tr('Knowledge is your only way out.')}</p>
@@ -80,8 +74,8 @@ export function CodePage() {
           <form onSubmit={submit} className="npanel max-w-md p-5">
             {!profile ? (
               <>
-                <label htmlFor="code" className="mb-2 block text-fog">{tr('Access code from your education center')}</label>
-                <input id="code" className="nfield font-dot text-2xl uppercase tracking-wider" placeholder="LL-XXXX-XXXX" autoComplete="off" autoFocus spellCheck={false} maxLength={20} value={code} onChange={(e) => setCode(e.target.value)} required minLength={6} />
+                <label htmlFor="code" className="mb-2 block text-fog">{tr('Access code from your education center, or six digits of a room')}</label>
+                <input id="code" className="nfield font-dot text-2xl uppercase tracking-wider" placeholder="LL-XXXX-XXXX / 000 000" autoComplete="off" autoFocus spellCheck={false} maxLength={20} value={code} onChange={(e) => setCode(e.target.value)} required minLength={6} />
               </>
             ) : (
               <>
@@ -128,7 +122,7 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [forgot, setForgot] = useState(false);
-  const options = useOptions();
+  const options = useAuthOptions();
   const me = useAuth((s) => s.me);
   const nav = useNavigate();
   if (me) return <Navigate to={homeOf(me)} replace />;
@@ -145,6 +139,7 @@ export function LoginPage() {
   };
   return (
     <Frame title={tr('Sign in')} lead={tr('Set the questions by day. Your students find their way out with them by night.')}>
+      <GoogleSignIn onToken={(token) => enter(token, nav)} />
       <form onSubmit={submit} className="space-y-4">
         <Text label={tr('E-mail')} type="email" autoComplete="username" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <Text label={tr('Password')} type="password" autoComplete="current-password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
@@ -163,7 +158,7 @@ export function RegisterPage() {
   const [f, setF] = useState({ firstName: '', lastName: '', email: '', password: '', repeat: '', invitationCode: params.get('code') ?? '', centerName: '', city: '', agree: false });
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
-  const options = useOptions();
+  const options = useAuthOptions();
   const me = useAuth((s) => s.me);
   const nav = useNavigate();
   if (me) return <Navigate to={homeOf(me)} replace />;
@@ -192,6 +187,8 @@ export function RegisterPage() {
       {closed ? (
         <p className="rounded-lg bg-well p-4">{tr('Registration is closed right now.')}</p>
       ) : (
+        <>
+        <GoogleSignIn onToken={(token) => enter(token, nav)} />
         <form onSubmit={submit} className="space-y-4">
           {kind === 'center' && <div className="grid gap-4 sm:grid-cols-2"><Text label={tr('Center name')} required minLength={2} maxLength={120} value={f.centerName} onChange={set('centerName')} /><Text label={tr('City')} maxLength={80} value={f.city} onChange={set('city')} /></div>}
           {kind === 'student' && <Text label={tr('Access code from your center')} required minLength={6} maxLength={20} className="uppercase" placeholder="LL-XXXX-XXXX" autoComplete="off" hint={tr('A group code or your personal code. With a personal code your earlier results stay with you.')} value={f.invitationCode} onChange={set('invitationCode')} />}
@@ -202,6 +199,7 @@ export function RegisterPage() {
           <button className="btn-main w-full py-2.5" disabled={busy || mismatch}>{busy ? tr('Creating...') : kind === 'student' ? tr('Create student account') : tr('Start free trial')}</button>
           {kind === 'center' && options.data && <p className="text-sm text-soft">{tr('The trial lasts {0} days. No payment details are needed.', { 0: options.data.trialDays })}</p>}
         </form>
+        </>
       )}
       <p className="mt-5 text-sm text-soft">{tr('Already registered?')}{' '}<Link to="/login" className="font-semibold text-accent hover:underline">{tr('Sign in')}</Link></p>
     </Frame>

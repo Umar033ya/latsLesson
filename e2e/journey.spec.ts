@@ -256,6 +256,8 @@ test.describe.serial('the whole product', () => {
     await shot(page, 'student-home-ru');
     await page.locator('article', { hasText: 'Последний урок' }).getByRole('button', { name: 'Начать' }).click();
     await page.waitForURL(/5174/);
+    // The launch ticket is single-use: the first page has to finish exchanging it.
+    await page.locator('.title nav button').first().waitFor({ timeout: 40_000 });
     await page.goto('http://localhost:5174/?lang=uz');
     await page.getByRole('button', { name: /Maktabga qaytish|Partaga o‘tirish/ }).click({ timeout: 40_000 });
     await page.waitForFunction(() => Boolean((window as any).__school?.player?.active));

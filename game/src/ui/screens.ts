@@ -5,7 +5,7 @@ import { getLanguage, setLanguage, tr } from '../i18n';
 import { LOCALE_NAMES, LOCALES } from '@last-lesson/scenario';
 import { settingsPanel } from './overlay';
 
-const platformUrl = () => import.meta.env.VITE_PLATFORM_URL || '/student';
+const platformUrl = () => import.meta.env.VITE_PLATFORM_URL || (import.meta.env.DEV ? 'http://localhost:5173/student' : '/student');
 
 /** Guests have no student page: they return to the room. */
 export const homeUrl = (session: GameSession) => (session.data.lobby ? platformUrl().replace(/\/student\/?$/, '/room') : platformUrl());
@@ -143,7 +143,7 @@ function boardRow(s: LobbyStanding, i: number, mine: boolean, steps: number) {
   return el(
     'tr',
     { class: mine ? 'bg-line/40' : '' },
-    el('th', { class: `${cell} w-24 font-jac text-18 ${i === 0 && s.outcome ? 'text-red' : 'text-wood'}`, scope: 'row' }, s.outcome ? String(i + 1) : '-'),
+    el('td', { class: `${cell} w-20 font-jac text-18 ${i === 0 && s.outcome ? 'text-red' : 'text-wood'}` }, s.outcome ? String(i + 1) : '-'),
     el('td', { class: cell }, el('i', { class: 'mr-4 inline-block h-6 w-6', style: `background:${LOBBY_COLORS[s.color] ?? LOBBY_COLORS[0]}` }), s.nickname),
     el('td', { class: cell }, !s.outcome ? tr('Still inside: {0} of {1}', { 0: s.progress, 1: steps }) : out ? time : `${OUTCOME[s.outcome][0]}, ${s.progress}/${steps}`),
     el('td', { class: `${cell} text-right` }, tr('{0} points', { 0: s.score })),

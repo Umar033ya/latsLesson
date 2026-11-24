@@ -6,6 +6,12 @@ Errors always look like `{ "error": { "code", "message", "details?", "requestId"
 
 | Area | Endpoints | Who |
 | --- | --- | --- |
+| Registration | `GET /auth/options`, `POST /auth/register`, `/auth/register-center`, `/auth/google` | public |
+| Profile | `PATCH /auth/me` (language), `POST, DELETE /auth/google/link` | signed in |
+| Teachers | `GET, POST /center/teachers`, `PATCH /center/teachers/:id`, `POST /center/teachers/:id/password` | center admin |
+| Rooms, host | `GET, POST /lobbies`, `GET /lobbies/campaigns`, `GET, DELETE /lobbies/:id`, `POST /lobbies/:id/start`, `/end`, `DELETE /lobbies/:id/players/:playerId` | teacher, center admin |
+| Rooms, player | `POST /room/join`, `/room/join-as-student`, `GET /room`, `POST /room/launch`, `/room/leave` | public, then room token |
+| Rooms, game | `GET, POST /play/lobby` | game token |
 | Authentication | `POST /auth/login`, `/auth/code`, `/auth/refresh`, `/auth/logout`, `/auth/change-password`, `GET /auth/me` | public / signed in |
 | Centers | `GET, POST /organizations`, `GET, PATCH /organizations/:id`, `PATCH /organizations/:id/status` | super admin |
 | Administrators | `GET, POST /users/admins`, `POST /users/:id/assign`, `PATCH /users/:id/status`, `POST /users/:id/reset-password` | super admin |
@@ -24,7 +30,9 @@ Errors always look like `{ "error": { "code", "message", "details?", "requestId"
 
 Super admins add `?organizationId=` to center endpoints. Center admins are always limited to their own center.
 
-Codes worth handling: `CODE_INVALID`, `CODE_EXPIRED`, `CODE_REVOKED`, `CODE_USED_UP`, `ACCESS_DISABLED`, `CENTER_SUSPENDED`, `SUBSCRIPTION_ENDED`, `PLAN_LIMIT`, `FEATURE_DISABLED`, `NOT_ENOUGH_QUESTIONS`, `CAMPAIGN_UNAVAILABLE`, `GAME_DISABLED`, `TICKET_INVALID`, `GAME_TOKEN_INVALID`, `GATE_LOCKED`, `ALREADY_RESOLVED`, `SESSION_FINISHED`, `SESSION_EXPIRED`, `RATE_LIMITED`.
+The header `X-LL-Lang: en, ru, uz` chooses the language of questions, lessons and reviews.
+
+Codes worth handling: `LOBBY_NOT_FOUND`, `LOBBY_STARTED`, `LOBBY_FULL`, `LOBBY_REMOVED`, `GOOGLE_LINK_REQUIRED`, `GOOGLE_INVALID`, `CODE_INVALID`, `CODE_EXPIRED`, `CODE_REVOKED`, `CODE_USED_UP`, `ACCESS_DISABLED`, `CENTER_SUSPENDED`, `SUBSCRIPTION_ENDED`, `PLAN_LIMIT`, `FEATURE_DISABLED`, `NOT_ENOUGH_QUESTIONS`, `CAMPAIGN_UNAVAILABLE`, `GAME_DISABLED`, `TICKET_INVALID`, `GAME_TOKEN_INVALID`, `GATE_LOCKED`, `ALREADY_RESOLVED`, `SESSION_FINISHED`, `SESSION_EXPIRED`, `RATE_LIMITED`.
 
 ## Question formats
 

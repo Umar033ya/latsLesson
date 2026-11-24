@@ -28,6 +28,7 @@ services:
       CODE_PEPPER: ${CODE_PEPPER:?set CODE_PEPPER}
       WEB_ORIGIN: ${PUBLIC_URL:-http://localhost:8080}
       GAME_URL: ${PUBLIC_URL:-http://localhost:8080}/play/
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       TRUST_PROXY: '1'
       SWAGGER_ENABLED: 'false'
   web:

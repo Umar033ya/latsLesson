@@ -40,11 +40,14 @@
   .btn-quiet { @apply btn px-2 text-soft hover:bg-well hover:text-ink; }
   .btn-red { @apply btn border border-pencil/40 bg-sheet text-pencil-dark hover:bg-pencil-pale; }
   .field { @apply w-full rounded-lg border border-rule bg-sheet px-3 py-2 text-[15px] text-ink placeholder:text-soft/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 disabled:bg-well disabled:text-soft; }
+  select.field { @apply cursor-pointer appearance-none bg-[length:14px] bg-[right_12px_center] bg-no-repeat pr-9; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23788' stroke-width='2.5'%3E%3Cpath d='M5 9l7 7 7-7'/%3E%3C/svg%3E"); }
   .lbl { @apply mb-1 block text-[13px] font-semibold text-soft; }
-  .sheet { @apply rounded-xl border border-rule bg-sheet shadow-sheet; }
+  .sheet { @apply rounded-2xl border border-rule bg-sheet shadow-sheet; }
   .reg { @apply w-full border-collapse text-left text-sm; }
-  .reg th { @apply border-b border-rule px-3 py-2.5 text-[13px] font-semibold text-soft; }
-  .reg td { @apply border-b border-rule px-3 py-3 align-middle; }
+  .reg th { @apply border-b border-rule bg-well/70 px-3 py-2.5 text-[13px] font-semibold text-soft; }
+  .reg th:first-child, .reg td:first-child { @apply pl-5; }
+  .reg th:last-child, .reg td:last-child { @apply pr-5; }
+  .reg td { @apply border-b border-rule px-3 py-2.5 align-middle; }
   .reg tbody tr:last-child td { @apply border-b-0; }
   .reg tbody tr:hover td { @apply bg-well; }
   .tag { @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold; }

@@ -19,6 +19,9 @@ const [CenterDashboard, Students, StudentPage, Groups, GroupPage, Codes, GameSet
 const [Results, ReviewPage, Analytics] = ['Results', 'ReviewPage', 'Analytics'].map(results);
 const [AdminDashboard, Centers, CenterPage, Admins, Plans, Subjects, PlatformSettings, Security, Activity, Account] = ['Dashboard', 'Centers', 'CenterPage', 'Admins', 'Plans', 'Subjects', 'PlatformSettings', 'Security', 'Activity', 'Account'].map(admin);
 const [Questions, Collections, Materials] = ['Questions', 'Collections', 'Materials'].map(content);
+const [Rooms, RoomPage] = ['Rooms', 'RoomPage'].map((n) => named(() => import('./features/rooms/host'), n));
+const [JoinRoom, RoomPlayer] = ['JoinRoom', 'RoomPlayer'].map((n) => named(() => import('./features/rooms/player'), n));
+const Teachers = named(() => import('./features/center/teachers'), 'Teachers');
 const [Campaigns, CampaignPage] = ['Campaigns', 'CampaignPage'].map(campaigns);
 
 /** Convenience only: every permission is checked again by the API. */
@@ -77,8 +80,23 @@ export function App() {
         <Routes>
           <Route path="/" element={<CodePage />} />
           <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/staff" element={<Navigate to="/login" replace />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/staff" element={<Navigate to="/login" replace />} />
+          <Route path="/join" element={<JoinRoom />} />
+          <Route path="/room" element={<RoomPlayer />} />
+          <Route
+            path="/teacher"
+            element={
+              <Only role="TEACHER">
+                <Shell kind="teacher" />
+              </Only>
+            }
+          >
+            <Route index element={<Rooms />} />
+            <Route path="rooms" element={<Navigate to="/teacher" replace />} />
+            <Route path="rooms/:id" element={<RoomPage />} />
+            <Route path="account" element={<Account />} />
+          </Route>
           <Route
             path="/student"
             element={
@@ -93,7 +111,7 @@ export function App() {
             <Route path="results" element={<MyResults />} />
             <Route path="results/:id" element={<MyReview />} />
             <Route path="progress" element={<MyProgress />} />
-              <Route path="settings" element={<MySettings />} />
+            <Route path="settings" element={<MySettings />} />
           </Route>
           <Route
             path="/center"
@@ -108,6 +126,9 @@ export function App() {
             <Route path="students/:id" element={<StudentPage />} />
             <Route path="groups" element={<Groups />} />
             <Route path="groups/:id" element={<GroupPage />} />
+            <Route path="rooms" element={<Rooms />} />
+            <Route path="rooms/:id" element={<RoomPage />} />
+            <Route path="teachers" element={<Teachers />} />
             <Route path="codes" element={<Codes />} />
             <Route path="results" element={<Results />} />
             <Route path="results/:id" element={<ReviewPage />} />
@@ -132,7 +153,6 @@ export function App() {
             <Route path="subjects" element={<Subjects />} />
             <Route path="settings" element={<PlatformSettings />} />
             <Route path="security" element={<Security />} />
-            
             {shared}
           </Route>
           <Route
