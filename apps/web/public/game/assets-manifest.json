@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "base": "/game/sprites/",
+  "sprites": ["player.png", "monster.png", "key.png", "battery.png", "wall.png", "floor.png", "desk.png", "door.png", "exit.png", "glow.png"],
+  "maps": ["/game/school-map.json"],
+  "audio": "procedural WebAudio (no external sound files)"
+}

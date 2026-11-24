@@ -1,0 +1,295 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  CENTER_ADMIN
+  GAMER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TEXT
+  MATCHING
+  ORDERING
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+model User {
+  id            String          @id @default(uuid()) @db.Uuid
+  email         String          @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  role          Role            @default(GAMER)
+  status        UserStatus      @default(ACTIVE)
+  avatarUrl     String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  refreshTokens RefreshToken[]
+  adminOf       OrganizationAdmin[]
+  memberships   Membership[]
+  createdCodes  InvitationCode[] @relation("CodeCreator")
+  questions     Question[]
+  preparations  Preparation[]
+  sessions      GameSession[]
+  results       GameResult[]
+  auditLogs     AuditLog[]
+  passwordResets PasswordReset[]
+}
+
+model Organization {
+  id            String              @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String              @unique
+  logoUrl       String?
+  status        OrganizationStatus  @default(ACTIVE)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  admins        OrganizationAdmin[]
+  memberships   Membership[]
+  invitations   InvitationCode[]
+  questions     Question[]
+  sessions      GameSession[]
+  results       GameResult[]
+  auditLogs     AuditLog[]
+
+  @@index([status])
+}
+
+model OrganizationAdmin {
+  id             String       @id @default(uuid()) @db.Uuid
+  userId         String       @db.Uuid
+  organizationId String       @db.Uuid
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+model Membership {
+  id             String       @id @default(uuid()) @db.Uuid
+  userId         String       @db.Uuid
+  organizationId String       @db.Uuid
+  joinedAt       DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+model InvitationCode {
+  id             String       @id @default(uuid()) @db.Uuid
+  codeHash       String       @unique
+  organizationId String       @db.Uuid
+  createdById    String       @db.Uuid
+  expiresAt      DateTime
+  maxUses        Int          @default(50)
+  usesCount      Int          @default(0)
+  isActive       Boolean      @default(true)
+  revokedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      User         @relation("CodeCreator", fields: [createdById], references: [id])
+
+  @@index([organizationId])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordReset {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subject {
+  id          String        @id @default(uuid()) @db.Uuid
+  slug        String        @unique
+  name        String
+  description String?
+  icon        String?
+  color       String?
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  topics      Topic[]
+  questions   Question[]
+  preparations Preparation[]
+  sessions    GameSession[]
+  results     GameResult[]
+}
+
+model Topic {
+  id        String     @id @default(uuid()) @db.Uuid
+  subjectId String     @db.Uuid
+  name      String
+  slug      String
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  questions Question[]
+
+  @@unique([subjectId, slug])
+}
+
+model Question {
+  id             String        @id @default(uuid()) @db.Uuid
+  subjectId      String        @db.Uuid
+  topicId        String?       @db.Uuid
+  organizationId String?       @db.Uuid
+  createdById    String?       @db.Uuid
+  type           QuestionType  @default(MULTIPLE_CHOICE)
+  difficulty     Difficulty    @default(MEDIUM)
+  prompt         String
+  options        Json          @default("{}")
+  correctAnswer  Json
+  explanation    String?
+  points         Int           @default(10)
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  subject        Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  topic          Topic?        @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  answers        GameAnswer[]
+
+  @@index([subjectId, difficulty])
+  @@index([organizationId])
+}
+
+model Preparation {
+  id         String     @id @default(uuid()) @db.Uuid
+  userId     String     @db.Uuid
+  subjectId  String     @db.Uuid
+  topics     String[]
+  difficulty Difficulty
+  content    Json
+  provider   String     @default("local")
+  createdAt  DateTime   @default(now())
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject    Subject    @relation(fields: [subjectId], references: [id])
+
+  @@index([userId])
+}
+
+model GameSession {
+  id                    String        @id @default(uuid()) @db.Uuid
+  userId                String        @db.Uuid
+  organizationId        String?       @db.Uuid
+  subjectId             String        @db.Uuid
+  preparationId         String?       @db.Uuid
+  questionIds           String[]      @default([])
+  status                SessionStatus @default(IN_PROGRESS)
+  startedAt             DateTime      @default(now())
+  endedAt               DateTime?
+  durationSeconds       Int           @default(0)
+  correctAnswers        Int           @default(0)
+  incorrectAnswers      Int           @default(0)
+  accuracy              Float         @default(0)
+  score                 Int           @default(0)
+  topicsNeedImprovement String[]
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization          Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  subject               Subject       @relation(fields: [subjectId], references: [id])
+  answers               GameAnswer[]
+  result                GameResult?
+
+  @@index([userId, startedAt])
+  @@index([organizationId, startedAt])
+}
+
+model GameAnswer {
+  id         String      @id @default(uuid()) @db.Uuid
+  sessionId  String      @db.Uuid
+  questionId String      @db.Uuid
+  answer     Json
+  isCorrect  Boolean
+  points     Int         @default(0)
+  answeredAt DateTime    @default(now())
+  session    GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question   Question    @relation(fields: [questionId], references: [id])
+
+  @@unique([sessionId, questionId])
+  @@index([sessionId])
+}
+
+model GameResult {
+  id                    String        @id @default(uuid()) @db.Uuid
+  sessionId             String        @unique @db.Uuid
+  userId                String        @db.Uuid
+  organizationId        String?       @db.Uuid
+  subjectId             String        @db.Uuid
+  durationSeconds       Int
+  correctAnswers        Int
+  incorrectAnswers      Int
+  accuracy              Float
+  topicsNeedImprovement String[]
+  completionStatus      SessionStatus
+  score                 Int           @default(0)
+  createdAt             DateTime      @default(now())
+  session               GameSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization          Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  subject               Subject       @relation(fields: [subjectId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+model AuditLog {
+  id             String       @id @default(uuid()) @db.Uuid
+  actorId        String?      @db.Uuid
+  organizationId String?      @db.Uuid
+  action         String
+  targetType     String
+  targetId       String?
+  metadata       Json         @default("{}")
+  createdAt      DateTime     @default(now())
+  actor          User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([organizationId])
+}

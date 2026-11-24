@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  background: #0b0f1a;
+  color: #e2e8f0;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { min-height: 100%; margin: 0; }
+body { background: radial-gradient(circle at 15% -10%, #1b2236 0%, #0b0f1a 45%); }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: #0b0f1a; }
+::-webkit-scrollbar-thumb { background: #2a3346; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #3c475e; }
+
+@layer components {
+  .card { @apply rounded-xl border border-white/10 bg-panel/80 backdrop-blur shadow-xl shadow-black/20; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply btn bg-blood text-white hover:bg-red-500 shadow-glow; }
+  .btn-secondary { @apply btn border border-white/15 bg-white/5 text-slate-200 hover:bg-white/10; }
+  .btn-ghost { @apply btn text-slate-400 hover:bg-white/5 hover:text-white; }
+  .input { @apply w-full rounded-lg border border-white/10 bg-ink/70 px-3.5 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-blood focus:ring-2 focus:ring-blood/20; }
+  .label { @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400; }
+  .badge { @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold; }
+  .table-wrap { @apply overflow-x-auto rounded-xl border border-white/10; }
+  .table { @apply w-full min-w-[640px] text-left text-sm; }
+  .table th { @apply bg-white/5 px-4 py-3 text-xs uppercase tracking-wider text-slate-400; }
+  .table td { @apply border-t border-white/5 px-4 py-3 text-slate-300; }
+  .table tr:hover td { @apply bg-white/[0.03]; }
+}
+
+.pixel-font { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.game-frame { box-shadow: 0 0 0 1px rgba(239, 68, 68, .25), 0 25px 80px rgba(0, 0, 0, .6); }

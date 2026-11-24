@@ -1,0 +1,9 @@
+{
+  "name": "@last-lesson/validation",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": { "build": "tsc -p tsconfig.json", "typecheck": "tsc --noEmit -p tsconfig.json", "lint": "eslint src --ext .ts" },
+  "dependencies": { "zod": "^3.24.1" },
+  "devDependencies": { "typescript": "^5.7.3" }
+}

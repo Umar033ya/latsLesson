@@ -1,0 +1,32 @@
+{
+  "name": "last-lesson",
+  "private": true,
+  "version": "1.0.0",
+  "description": "LAST LESSON - educational horror survival platform (web + PWA)",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @last-lesson/backend --filter @last-lesson/web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "format": "prettier --write \"{apps,packages}/**/*.{ts,tsx,json,css}\"",
+    "db:generate": "pnpm --filter @last-lesson/backend prisma:generate",
+    "db:migrate": "pnpm --filter @last-lesson/backend prisma:migrate",
+    "db:seed": "pnpm --filter @last-lesson/backend prisma:seed",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.5.0",
+    "argon2": "^0.41.1"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "prisma": "^6.5.0",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@12.5.1"
+}
