@@ -1,54 +1,45 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { Role } from '@last-lesson/shared-types';
-import { JwtAuthGuard, OrgAccessGuard, RolesGuard } from '../common/guards';
-import { CurrentUser, RequireOrgAccess, Roles } from '../common/decorators';
-import { zodPipe } from '../common/zod-validation.pipe';
+import { createOrganizationSchema, organizationStatusSchema, paginationSchema, updateOrganizationSchema } from '@last-lesson/validation';
+import { Auth } from '../common/guards';
+import { CurrentUser } from '../common/decorators';
+import { IdPipe, zodPipe } from '../common/zod-validation.pipe';
+import type { Actor } from '../common/actor';
 import { OrganizationsService } from './organizations.service';
 
-const statusSchema = z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']) });
-const updateSchema = z.object({
-  name: z.string().trim().min(2).max(120).optional(),
-  logoUrl: z.string().url().nullable().optional(),
-});
+const listSchema = paginationSchema.extend({ status: z.enum(['ACTIVE', 'SUSPENDED', 'INACTIVE']).optional(), planId: z.string().uuid().optional() });
 
+/** Education centers as seen by the platform owner. Centers edit themselves through /center. */
 @ApiTags('organizations')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard, OrgAccessGuard)
+@Auth(Role.SUPER_ADMIN)
 @Controller('organizations')
 export class OrganizationsController {
   constructor(private readonly service: OrganizationsService) {}
 
   @Post()
-  @Roles(Role.SUPER_ADMIN)
-  create(@Body() body: any, @CurrentUser() user: any) {
+  create(@Body(zodPipe(createOrganizationSchema)) body: z.infer<typeof createOrganizationSchema>, @CurrentUser() user: Actor) {
     return this.service.create(body, user);
   }
 
   @Get()
-  @Roles(Role.SUPER_ADMIN, Role.CENTER_ADMIN)
-  findAll(@CurrentUser() user: any) {
-    return this.service.findAll(user);
+  findAll(@Query(zodPipe(listSchema)) query: z.infer<typeof listSchema>) {
+    return this.service.findAll(query);
   }
 
   @Get(':id')
-  @Roles(Role.SUPER_ADMIN, Role.CENTER_ADMIN)
-  @RequireOrgAccess('param')
-  findOne(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.service.findOne(id, user);
+  findOne(@Param('id', IdPipe) id: string) {
+    return this.service.findOne(id);
   }
 
   @Patch(':id/status')
-  @Roles(Role.SUPER_ADMIN)
-  updateStatus(@Param('id') id: string, @Body(zodPipe(statusSchema)) body: any, @CurrentUser() user: any) {
-    return this.service.updateStatus(id, body.status, user);
+  updateStatus(@Param('id', IdPipe) id: string, @Body(zodPipe(organizationStatusSchema)) body: z.infer<typeof organizationStatusSchema>, @CurrentUser() user: Actor) {
+    return this.service.updateStatus(id, body.status, body.reason, user);
   }
 
   @Patch(':id')
-  @Roles(Role.SUPER_ADMIN, Role.CENTER_ADMIN)
-  @RequireOrgAccess('param')
-  update(@Param('id') id: string, @Body(zodPipe(updateSchema)) body: any, @CurrentUser() user: any) {
+  update(@Param('id', IdPipe) id: string, @Body(zodPipe(updateOrganizationSchema)) body: z.infer<typeof updateOrganizationSchema>, @CurrentUser() user: Actor) {
     return this.service.update(id, body, user);
   }
 }

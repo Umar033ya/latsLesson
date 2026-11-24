@@ -7,3 +7,9 @@ build
 coverage
 .prisma
 DS_Store
+.pgdata
+*.tsbuildinfo
+test-results
+playwright-report
+dev-dist
+vercel-dist

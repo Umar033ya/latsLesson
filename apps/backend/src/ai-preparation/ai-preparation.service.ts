@@ -1,169 +1,145 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { preparationSchema } from '@last-lesson/validation';
-import { Difficulty, Role } from '@last-lesson/shared-types';
+import { Injectable } from '@nestjs/common';
+import type { Prisma, Question } from '@prisma/client';
+import type { z } from 'zod';
+import type { Locale, QuestionKind } from '@last-lesson/scenario';
+import { gradeAnswer, localizeQuestion, presentOptions, type preparationSchema } from '@last-lesson/validation';
 import { PrismaService } from '../common/prisma.service';
 import { AuditService } from '../common/audit.service';
+import { AccessService } from '../common/access.service';
+import { invalid, notFound } from '../common/errors';
+import { studentOrg, type Actor } from '../common/actor';
+import { StudyGuideProvider } from './study-guide.provider';
 
-type Actor = { id: string; role: Role; organizationIds: string[] };
-
+interface Block {
+  topic: string;
+  text: string;
+}
+interface GeneratedQuestion {
+  id: string;
+  prompt: string;
+  options: Array<{ id: string; text: string }>;
+  correct: string;
+  explanation: string;
+}
+/** Stored on the server only; `generated[].correct` is stripped before anything is sent to a student. */
 interface StudyContent {
   summary: string;
-  explanations: Array<{ topic: string; text: string }>;
-  examples: Array<{ topic: string; text: string }>;
+  explanations: Block[];
+  examples: Block[];
   practiceQuestionIds: string[];
+  generated: GeneratedQuestion[];
 }
+const PRACTICE_COUNT = 5;
 
 @Injectable()
 export class AiPreparationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly config: ConfigService,
+    private readonly access: AccessService,
+    private readonly provider: StudyGuideProvider,
   ) {}
 
-  async create(input: unknown, actor: Actor) {
-    const data = preparationSchema.parse(input);
-    const subject = await this.prisma.subject.findUnique({
-      where: { id: data.subjectId },
-      include: { topics: true },
+  async create(data: z.infer<typeof preparationSchema>, actor: Actor, locale: Locale) {
+    const organizationId = studentOrg(actor);
+    const org = await this.access.operational(organizationId);
+    const subject = await this.prisma.subject.findFirst({ where: { id: data.subjectId, isActive: true }, include: { topics: { where: { isActive: true } } } });
+    if (!subject) throw invalid('Choose a subject');
+    const topics = subject.topics.filter((t) => data.topics.some((name) => name.toLowerCase() === t.name.toLowerCase()));
+    if (!topics.length) throw invalid('Choose at least one topic');
+    const owned = { OR: [{ organizationId: null }, { organizationId }] };
+    const topicIds = topics.map((t) => t.id);
+    const [rawMaterials, pool] = await Promise.all([
+      this.prisma.learningMaterial.findMany({ where: { AND: [owned], status: 'PUBLISHED', subjectId: subject.id, OR: [{ topicId: { in: topicIds } }, { topicId: null }] }, include: { topic: true } }),
+      this.prisma.question.findMany({ where: { AND: [owned], status: 'PUBLISHED', isActive: true, subjectId: subject.id, topicId: { in: topicIds } }, include: { topic: true }, take: 120 }),
+    ]);
+    const materials = rawMaterials.map((m) => {
+      const tr = (m.translations as Record<string, { title?: string; body?: string; examples?: string[] }>)?.[locale];
+      return { ...m, title: tr?.title || m.title, body: tr?.body || m.body, examples: tr?.examples?.length ? tr.examples : m.examples };
     });
-    if (!subject || !subject.isActive) throw new BadRequestException('Subject not available');
-
-    const questions = await this.prisma.question.findMany({
-      where: {
-        subjectId: data.subjectId,
-        difficulty: data.difficulty,
-        isActive: true,
-        OR: [
-          { organizationId: null },
-          ...(actor.organizationIds.length ? [{ organizationId: { in: actor.organizationIds } }] : []),
-        ],
-      },
-      include: { topic: true },
-      take: 30,
-    });
-
-    const provider = (this.config.get<string>('AI_PROVIDER') ?? 'local').toLowerCase();
-    const content =
-      provider === 'openai'
-        ? await this.remoteStudyGuide(subject.name, data.topics, data.difficulty, questions)
-        : this.localStudyGuide(subject.name, data.topics, data.difficulty, questions);
-
+    const remote = (await this.access.features(org)).aiPreparation ? await this.provider.generate(subject.name, topics.map((t) => t.name), data.difficulty, locale) : null;
+    const local = this.localGuide(subject.name, topics.map((t) => t.name), data.difficulty, materials, pool);
+    const content: StudyContent = remote
+      ? {
+          summary: remote.summary,
+          // A center's own materials always come first.
+          explanations: [...local.explanations.filter((e) => materials.some((m) => m.organizationId && m.title === e.topic)), ...remote.explanations],
+          examples: [...remote.examples, ...local.examples].slice(0, 8),
+          practiceQuestionIds: local.practiceQuestionIds,
+          generated: remote.practice.map((p, i) => ({ id: `g${i}`, prompt: p.prompt, options: p.options.map((text, n) => ({ id: String(n), text })), correct: String(p.correctIndex), explanation: p.explanation })),
+        }
+      : local;
     const preparation = await this.prisma.preparation.create({
-      data: {
-        userId: actor.id,
-        subjectId: data.subjectId,
-        topics: data.topics,
-        difficulty: data.difficulty,
-        content: content as object,
-        provider: provider === 'openai' ? 'openai' : 'local',
-      },
+      data: { userId: actor.id, subjectId: subject.id, topics: topics.map((t) => t.name), difficulty: data.difficulty, content: content as unknown as Prisma.InputJsonValue, provider: remote ? 'openai' : 'local' },
     });
-    await this.audit.log({
-      actorId: actor.id,
-      action: 'PREPARATION_CREATED',
-      targetType: 'Preparation',
-      targetId: preparation.id,
-      metadata: { subject: subject.name, topics: data.topics, provider },
-    });
-    return preparation;
+    await this.audit.log({ actorId: actor.id, organizationId, action: 'PREPARATION_CREATED', targetType: 'Preparation', targetId: preparation.id, category: 'ACTIVITY', metadata: { subject: subject.name, provider: preparation.provider } });
+    return this.findOne(preparation.id, actor, locale);
   }
 
   async mine(userId: string) {
-    return this.prisma.preparation.findMany({
-      where: { userId },
-      include: { subject: { select: { id: true, name: true, slug: true } } },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
+    return this.prisma.preparation.findMany({ where: { userId }, select: { id: true, topics: true, difficulty: true, provider: true, createdAt: true, subject: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 30 });
   }
 
-  async findOne(id: string, actor: Actor) {
-    const prep = await this.prisma.preparation.findUnique({
-      where: { id },
-      include: { subject: true },
-    });
-    if (!prep) throw new NotFoundException('Preparation not found');
-    if (actor.role === Role.GAMER && prep.userId !== actor.id) throw new ForbiddenException();
+  async findOne(id: string, actor: Actor, locale: Locale) {
+    const prep = await this.owned(id, actor);
+    const content = prep.content as unknown as StudyContent;
+    const questions = await this.prisma.question.findMany({ where: { id: { in: content.practiceQuestionIds } } });
+    const ordered = content.practiceQuestionIds.map((qid) => questions.find((q) => q.id === qid)).filter((q): q is Question => Boolean(q)).map((q) => localizeQuestion(q, locale));
+    return {
+      id: prep.id,
+      subject: prep.subject,
+      topics: prep.topics,
+      difficulty: prep.difficulty,
+      provider: prep.provider,
+      createdAt: prep.createdAt,
+      summary: content.summary,
+      explanations: content.explanations,
+      examples: content.examples,
+      practice: [
+        ...ordered.map((q) => ({ id: q.id, type: q.type, prompt: q.prompt, options: presentOptions(q.type as QuestionKind, q.options, `${prep.id}:${q.id}`, q.correctAnswer), hint: q.hint })),
+        ...(content.generated ?? []).map((g) => ({ id: g.id, type: 'MULTIPLE_CHOICE', prompt: g.prompt, options: presentOptions('MULTIPLE_CHOICE', g.options, `${prep.id}:${g.id}`), hint: null })),
+      ],
+    };
+  }
+
+  /** Practice is graded but never recorded as a result. */
+  async practice(id: string, input: { questionId: string; answer: unknown }, actor: Actor, locale: Locale) {
+    const prep = await this.owned(id, actor);
+    const content = prep.content as unknown as StudyContent;
+    const generated = content.generated?.find((g) => g.id === input.questionId);
+    if (generated) return { correct: gradeAnswer('MULTIPLE_CHOICE', generated.correct, input.answer), explanation: generated.explanation || null, correctAnswer: generated.correct };
+    if (!content.practiceQuestionIds.includes(input.questionId)) throw invalid('This question is not part of the study guide');
+    const q = localizeQuestion(await this.prisma.question.findUniqueOrThrow({ where: { id: input.questionId } }), locale);
+    return { correct: gradeAnswer(q.type as QuestionKind, q.correctAnswer, input.answer), explanation: q.explanation, correctAnswer: q.correctAnswer };
+  }
+
+  private async owned(id: string, actor: Actor) {
+    const prep = await this.prisma.preparation.findFirst({ where: { id, userId: actor.id }, include: { subject: { select: { id: true, name: true } } } });
+    if (!prep) throw notFound('Study guide');
     return prep;
   }
 
-  private localStudyGuide(
-    subjectName: string,
+  private localGuide(
+    subject: string,
     topics: string[],
-    difficulty: Difficulty,
-    questions: Array<{ id: string; prompt: string; explanation: string | null; topic: { name: string } | null }>,
+    difficulty: string,
+    materials: Array<{ title: string; body: string; examples: string[]; topic: { name: string } | null }>,
+    pool: Array<Question & { topic: { name: string } | null }>,
   ): StudyContent {
-    const selected = questions.filter((q) => !q.topic || topics.some((t) => q.topic?.name.toLowerCase() === t.toLowerCase()));
-    const pool = selected.length > 0 ? selected : questions;
-    const byTopic = new Map<string, typeof pool>();
-    for (const q of pool) {
-      const key = q.topic?.name ?? 'Core concepts';
-      byTopic.set(key, [...(byTopic.get(key) ?? []), q]);
+    const covered = new Set(materials.map((m) => m.topic?.name).filter(Boolean));
+    const explanations: Block[] = materials.map((m) => ({ topic: m.title, text: m.body }));
+    for (const topic of topics.filter((t) => !covered.has(t))) {
+      const facts = [...new Set(pool.filter((q) => q.topic?.name === topic && q.explanation).map((q) => q.explanation!))].slice(0, 4);
+      if (facts.length) explanations.push({ topic, text: facts.join(' ') });
     }
-    const explanations = [...byTopic.entries()].map(([topic, items]) => ({
-      topic,
-      text:
-        items
-          .map((q) => q.explanation || `Review this ${difficulty.toLowerCase()} problem: ${q.prompt}`)
-          .slice(0, 3)
-          .join(' '),
-    }));
-    const examples = pool.slice(0, 4).map((q) => ({ topic: q.topic?.name ?? 'Core concepts', text: q.prompt }));
+    const order = { EASY: 0, MEDIUM: 1, HARD: 2 } as Record<string, number>;
+    const ranked = [...pool].sort((a, b) => Math.abs(order[a.difficulty] - order[difficulty]) - Math.abs(order[b.difficulty] - order[difficulty]) || Math.random() - 0.5);
     return {
-      summary: `${subjectName} preparation for ${topics.join(', ')} (${difficulty.toLowerCase()}). Work through the explanations, then apply them in the practice questions below before entering the school.`,
-      explanations: explanations.length
-        ? explanations
-        : [{ topic: topics.join(', '), text: `Review the fundamentals of ${subjectName}: ${topics.join(', ')}.` }],
-      examples,
-      practiceQuestionIds: pool.slice(0, 10).map((q) => q.id as unknown as string),
-      // The id list is kept for auditing; the actual bank questions are fetched separately at game start.
-    } as StudyContent;
-  }
-
-  private async remoteStudyGuide(
-    subjectName: string,
-    topics: string[],
-    difficulty: Difficulty,
-    questions: Array<{ id: string; prompt: string }>,
-  ): Promise<StudyContent> {
-    const apiKey = this.config.get<string>('AI_API_KEY');
-    if (!apiKey) throw new BadRequestException('AI preparation provider is not configured');
-    const baseUrl = this.config.get<string>('AI_BASE_URL') ?? 'https://api.openai.com/v1';
-    const model = this.config.get<string>('AI_MODEL') ?? 'gpt-4o-mini';
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a study tutor. Return strict JSON with keys summary, explanations (array of {topic,text}), examples (array of {topic,text}). Never invent answers to gameplay questions.',
-          },
-          {
-            role: 'user',
-            content: `Subject: ${subjectName}. Topics: ${topics.join(', ')}. Difficulty: ${difficulty}. Bank prompts for context: ${questions.map((q) => q.prompt).join(' | ')}`,
-          },
-        ],
-        response_format: { type: 'json_object' },
-      }),
-    });
-    if (!response.ok) throw new BadRequestException('AI preparation provider is unavailable');
-    const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    let parsed: any = {};
-    try {
-      parsed = JSON.parse(payload.choices?.[0]?.message?.content ?? '{}');
-    } catch {
-      parsed = {};
-    }
-    return {
-      summary: String(parsed.summary ?? `Study guide for ${subjectName}: ${topics.join(', ')}.`),
-      explanations: Array.isArray(parsed.explanations) ? parsed.explanations : [],
-      examples: Array.isArray(parsed.examples) ? parsed.examples : [],
-      practiceQuestionIds: questions.slice(0, 10).map((q) => q.id),
+      summary: 'Read the notes, try the practice questions, then go in. The questions inside will be different.',
+      explanations: explanations.length ? explanations : [{ topic: topics.join(', '), text: 'Your center has not added notes for this topic yet. Use the practice questions below.' }],
+      examples: materials.flatMap((m) => m.examples.map((text) => ({ topic: m.title, text }))).slice(0, 8),
+      practiceQuestionIds: ranked.slice(0, PRACTICE_COUNT).map((q) => q.id),
+      generated: [],
     };
   }
 }

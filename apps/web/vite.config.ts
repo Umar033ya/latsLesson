@@ -7,49 +7,38 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons/*.png', 'game/sprites/*.png', 'game/*.json'],
+      includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
-        name: 'LAST LESSON — Educational Horror Survival',
+        name: 'LAST LESSON',
         short_name: 'LAST LESSON',
-        description: 'Study, survive and learn inside an abandoned school. A browser game for educational centers.',
-        theme_color: '#0b0f1a',
-        background_color: '#0b0f1a',
+        description: 'An educational mystery game for schools and learning centers.',
+        theme_color: '#1c3531',
+        background_color: '#0a0c13',
         display: 'standalone',
-        orientation: 'any',
         start_url: '/',
         scope: '/',
         lang: 'en',
         categories: ['education', 'games'],
         icons: [
           { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
       workbox: {
-        navigateFallback: '/offline.html',
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,json,woff2}'],
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        // Only static files are cached. API responses and the game are never stored by the service worker.
+        globPatterns: ['**/*.{js,css,html,svg,woff2,png}'],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//, /^\/play(\/|$)/],
         cleanupOutdatedCaches: true,
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/game/'),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'last-lesson-game-assets',
-              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
-            handler: 'NetworkOnly',
-            options: { cacheName: 'last-lesson-api-runtime' },
-          },
-        ],
       },
     }),
   ],
-  build: { chunkSizeWarningLimit: 2000 },
-  server: { port: 5173 },
+  build: {
+    rollupOptions: { output: { manualChunks: { react: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'] } } },
+  },
+  server: {
+    port: 5173,
+    strictPort: true,
+    proxy: { '/api': { target: process.env.API_PROXY ?? 'http://localhost:3000', changeOrigin: false } },
+  },
 });

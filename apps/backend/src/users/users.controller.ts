@@ -1,56 +1,52 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import { ROLE_VALUES } from '@last-lesson/constants';
 import { Role } from '@last-lesson/shared-types';
-import { JwtAuthGuard, RolesGuard } from '../common/guards';
-import { CurrentUser, Roles } from '../common/decorators';
-import { zodPipe } from '../common/zod-validation.pipe';
+import { createAdminSchema } from '@last-lesson/validation';
+import { Auth } from '../common/guards';
+import { CurrentUser } from '../common/decorators';
+import { IdPipe, OptionalIdPipe, zodPipe } from '../common/zod-validation.pipe';
+import type { Actor } from '../common/actor';
 import { UsersService } from './users.service';
 
-const assignSchema = z.object({ organizationId: z.string().uuid() });
-const statusSchema = z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']) });
-
+/** Platform accounts. Super admins only; centers manage their students through /center. */
 @ApiTags('users')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@Auth(Role.SUPER_ADMIN)
 @Controller('users')
 export class UsersController {
   constructor(private readonly service: UsersService) {}
 
-  @Get()
-  @Roles(Role.SUPER_ADMIN, Role.CENTER_ADMIN)
-  list(
-    @CurrentUser() user: any,
-    @Query('role') role?: string,
-    @Query('search') search?: string,
-    @Query('organizationId') organizationId?: string,
-  ) {
-    const validRole = ROLE_VALUES.includes(role as any) ? (role as Role) : undefined;
-    return this.service.list(user, { role: validRole, search, organizationId });
+  @Get('admins')
+  admins(@Query('search') search?: string, @Query('organizationId', OptionalIdPipe) organizationId?: string) {
+    return this.service.listAdmins({ search, organizationId });
   }
 
   @Post('admins')
-  @Roles(Role.SUPER_ADMIN)
-  createAdmin(@Body() body: any, @CurrentUser() user: any) {
+  @ApiOperation({ summary: 'Create a center administrator. A generated password is returned once.' })
+  createAdmin(@Body(zodPipe(createAdminSchema)) body: z.infer<typeof createAdminSchema>, @CurrentUser() user: Actor) {
     return this.service.createAdmin(body, user);
   }
 
   @Post(':id/assign')
-  @Roles(Role.SUPER_ADMIN)
-  assign(@Param('id') id: string, @Body(zodPipe(assignSchema)) body: any, @CurrentUser() user: any) {
+  @HttpCode(200)
+  assign(@Param('id', IdPipe) id: string, @Body(zodPipe(z.object({ organizationId: z.string().uuid() }))) body: { organizationId: string }, @CurrentUser() user: Actor) {
     return this.service.assignAdmin(id, body.organizationId, user);
   }
 
+  @Delete(':id/assign/:organizationId')
+  unassign(@Param('id', IdPipe) id: string, @Param('organizationId', IdPipe) organizationId: string, @CurrentUser() user: Actor) {
+    return this.service.unassignAdmin(id, organizationId, user);
+  }
+
   @Patch(':id/status')
-  @Roles(Role.SUPER_ADMIN)
-  setStatus(@Param('id') id: string, @Body(zodPipe(statusSchema)) body: any, @CurrentUser() user: any) {
+  setStatus(@Param('id', IdPipe) id: string, @Body(zodPipe(z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']) }))) body: { status: 'ACTIVE' | 'SUSPENDED' }, @CurrentUser() user: Actor) {
     return this.service.setStatus(id, body.status, user);
   }
 
-  @Get('profile')
-  @Roles(Role.SUPER_ADMIN, Role.CENTER_ADMIN, Role.GAMER)
-  profile(@CurrentUser() user: any) {
-    return this.service.getProfile(user.id);
+  @Post(':id/reset-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Issue a temporary password for a center administrator (returned once)' })
+  resetPassword(@Param('id', IdPipe) id: string, @CurrentUser() user: Actor) {
+    return this.service.resetPassword(id, user);
   }
 }

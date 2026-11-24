@@ -1,15 +1,20 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // rhel-openssl-3.0.x is the Vercel (AWS Lambda) runtime.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Neon: pooled connection for the API, direct connection for migrations.
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 enum Role {
   SUPER_ADMIN
   CENTER_ADMIN
+  TEACHER
   GAMER
 }
 
@@ -21,19 +26,54 @@ enum UserStatus {
 enum OrganizationStatus {
   ACTIVE
   SUSPENDED
+  INACTIVE
 }
 
+enum MembershipStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CodeKind {
+  GROUP
+  PERSONAL
+}
+
+enum SessionOutcome {
+  ESCAPED
+  DISMISSED
+  DETAINED
+  TIMEOUT
+  LEFT
+}
+
+/// MULTIPLE_CHOICE is the original single-answer type; MULTI_SELECT allows several answers.
 enum QuestionType {
   MULTIPLE_CHOICE
   TEXT
   MATCHING
   ORDERING
+  MULTI_SELECT
+  TRUE_FALSE
+  PUZZLE
 }
 
 enum Difficulty {
   EASY
   MEDIUM
   HARD
+}
+
+enum LobbyStatus {
+  WAITING
+  RUNNING
+  FINISHED
 }
 
 enum SessionStatus {
@@ -44,21 +84,37 @@ enum SessionStatus {
 
 model User {
   id            String          @id @default(uuid()) @db.Uuid
-  email         String          @unique
-  passwordHash  String
+  /// Students who sign in with an access code have no email or password.
+  email         String?         @unique
+  passwordHash  String?
+  /// Subject id of the linked Google account.
+  googleSub     String?         @unique
+  /// Joined a room with a code only: no profile, no membership, no sign-in.
+  isGuest       Boolean         @default(false)
   firstName     String
   lastName      String
   role          Role            @default(GAMER)
   status        UserStatus      @default(ACTIVE)
   avatarUrl     String?
+  locale        String          @default("en")
+  /// Center that created (and may edit) this student profile; for a teacher, the center they work in.
+  homeOrganizationId String?    @db.Uuid
+  failedLogins  Int             @default(0)
+  lockedUntil   DateTime?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+  homeOrganization Organization? @relation("HomeStudents", fields: [homeOrganizationId], references: [id], onDelete: SetNull)
   refreshTokens RefreshToken[]
+  personalCodes InvitationCode[] @relation("CodeStudent")
+  launchTickets LaunchTicket[]
+  campaigns     Campaign[]
   adminOf       OrganizationAdmin[]
   memberships   Membership[]
   createdCodes  InvitationCode[] @relation("CodeCreator")
   questions     Question[]
   preparations  Preparation[]
+  hostedLobbies Lobby[]
+  lobbyPlayers  LobbyPlayer[]
   sessions      GameSession[]
   results       GameResult[]
   auditLogs     AuditLog[]
@@ -70,13 +126,29 @@ model Organization {
   name          String
   slug          String              @unique
   logoUrl       String?
+  contactName   String?
+  contactEmail  String?
+  contactPhone  String?
+  city          String?
+  internalNote  String?
   status        OrganizationStatus  @default(ACTIVE)
+  planId        String?             @db.Uuid
+  subscriptionEndsAt DateTime?
+  /// Branding, gameplay defaults and content overrides (validated by centerSettingsSchema).
+  settings      Json                @default("{}")
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
+  plan          Plan?               @relation(fields: [planId], references: [id], onDelete: SetNull)
+  homeStudents  User[]              @relation("HomeStudents")
+  groups        Group[]
+  collections   QuestionCollection[]
+  campaigns     Campaign[]
+  materials     LearningMaterial[]
   admins        OrganizationAdmin[]
   memberships   Membership[]
   invitations   InvitationCode[]
   questions     Question[]
+  lobbies       Lobby[]
   sessions      GameSession[]
   results       GameResult[]
   auditLogs     AuditLog[]
@@ -96,23 +168,75 @@ model OrganizationAdmin {
   @@index([organizationId])
 }
 
+model Plan {
+  id            String         @id @default(uuid()) @db.Uuid
+  key           String         @unique
+  name          String
+  description   String?
+  maxStudents   Int
+  maxGroups     Int
+  maxCampaigns  Int
+  maxQuestions  Int
+  features      Json           @default("{}")
+  isActive      Boolean        @default(true)
+  sortOrder     Int            @default(0)
+  createdAt     DateTime       @default(now())
+  organizations Organization[]
+}
+
+model PlatformSetting {
+  key         String   @id
+  value       Json
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+}
+
+model Group {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @db.Uuid
+  name           String
+  description    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships    Membership[]
+  codes          InvitationCode[]
+  campaigns      CampaignGroup[]
+
+  @@unique([organizationId, name])
+}
+
 model Membership {
   id             String       @id @default(uuid()) @db.Uuid
   userId         String       @db.Uuid
   organizationId String       @db.Uuid
+  groupId        String?      @db.Uuid
+  status         MembershipStatus @default(ACTIVE)
+  accessExpiresAt DateTime?
+  note           String?
   joinedAt       DateTime     @default(now())
+  lastActiveAt   DateTime?
+  group          Group?       @relation(fields: [groupId], references: [id], onDelete: SetNull)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([userId, organizationId])
   @@index([organizationId])
+  @@index([groupId])
 }
 
+/// Access code. Only an HMAC of the code is stored; `hint` keeps the last four characters for recognition.
 model InvitationCode {
   id             String       @id @default(uuid()) @db.Uuid
   codeHash       String       @unique
+  hint           String       @default("")
+  label          String?
+  kind           CodeKind     @default(GROUP)
   organizationId String       @db.Uuid
+  groupId        String?      @db.Uuid
+  studentId      String?      @db.Uuid
   createdById    String       @db.Uuid
+  lastUsedAt     DateTime?
   expiresAt      DateTime
   maxUses        Int          @default(50)
   usesCount      Int          @default(0)
@@ -121,20 +245,29 @@ model InvitationCode {
   createdAt      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy      User         @relation("CodeCreator", fields: [createdById], references: [id])
+  group          Group?       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student        User?        @relation("CodeStudent", fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
+  @@index([studentId])
+  @@index([groupId])
 }
 
 model RefreshToken {
   id        String    @id @default(uuid()) @db.Uuid
   userId    String    @db.Uuid
   tokenHash String    @unique
+  /// Rotation family: presenting a revoked token revokes the whole family.
+  family    String    @default("")
+  /// Center the session is bound to (access-code sign-in).
+  organizationId String? @db.Uuid
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([family])
 }
 
 model PasswordReset {
@@ -161,6 +294,7 @@ model Subject {
   preparations Preparation[]
   sessions    GameSession[]
   results     GameResult[]
+  materials   LearningMaterial[]
 }
 
 model Topic {
@@ -168,6 +302,8 @@ model Topic {
   subjectId String     @db.Uuid
   name      String
   slug      String
+  isActive  Boolean    @default(true)
+  materials LearningMaterial[]
   subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   questions Question[]
 
@@ -186,9 +322,15 @@ model Question {
   options        Json          @default("{}")
   correctAnswer  Json
   explanation    String?
+  hint           String?
+  /// { ru: { prompt, hint, explanation, options: { id: text } }, uz: ... }
+  translations   Json          @default("{}")
   points         Int           @default(10)
+  status         ContentStatus @default(PUBLISHED)
   isActive       Boolean       @default(true)
   createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @default(now()) @updatedAt
+  collections    CollectionQuestion[]
   subject        Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   topic          Topic?        @relation(fields: [topicId], references: [id], onDelete: SetNull)
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -197,6 +339,105 @@ model Question {
 
   @@index([subjectId, difficulty])
   @@index([organizationId])
+  @@index([topicId])
+}
+
+model QuestionCollection {
+  id             String        @id @default(uuid()) @db.Uuid
+  /// null = official collection
+  organizationId String?       @db.Uuid
+  name           String
+  description    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  questions      CollectionQuestion[]
+
+  @@index([organizationId])
+}
+
+model CollectionQuestion {
+  collectionId String @db.Uuid
+  questionId   String @db.Uuid
+  position     Int    @default(0)
+  collection   QuestionCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  question     Question           @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, questionId])
+  @@index([questionId])
+}
+
+model LearningMaterial {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String?       @db.Uuid
+  subjectId      String        @db.Uuid
+  topicId        String?       @db.Uuid
+  title          String
+  body           String
+  examples       String[]      @default([])
+  /// { ru: { title, body, examples }, uz: ... }
+  translations   Json          @default("{}")
+  status         ContentStatus @default(PUBLISHED)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subject        Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  topic          Topic?        @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([subjectId])
+}
+
+model Campaign {
+  id             String        @id @default(uuid()) @db.Uuid
+  /// null = official campaign available to every center
+  organizationId String?       @db.Uuid
+  createdById    String?       @db.Uuid
+  title          String
+  description    String?
+  status         ContentStatus @default(DRAFT)
+  /// { ru: { title, description, objectives }, uz: ... }
+  translations   Json          @default("{}")
+  /// Sections, question sources, progression, gameplay and content (validated by campaignConfigSchema).
+  config         Json
+  availableFrom  DateTime?
+  availableTo    DateTime?
+  publishedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  groups         CampaignGroup[]
+  lobbies        Lobby[]
+  sessions       GameSession[]
+
+  @@index([organizationId, status])
+}
+
+/// No rows for a campaign means every group in the center can play it.
+model CampaignGroup {
+  campaignId String   @db.Uuid
+  groupId    String   @db.Uuid
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, groupId])
+  @@index([groupId])
+}
+
+/// One-time, short-lived ticket that hands a session over to the game application.
+model LaunchTicket {
+  id        String      @id @default(uuid()) @db.Uuid
+  tokenHash String      @unique
+  sessionId String      @db.Uuid
+  userId    String      @db.Uuid
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime    @default(now())
+  session   GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
 }
 
 model Preparation {
@@ -218,9 +459,24 @@ model GameSession {
   id                    String        @id @default(uuid()) @db.Uuid
   userId                String        @db.Uuid
   organizationId        String?       @db.Uuid
-  subjectId             String        @db.Uuid
+  groupId               String?       @db.Uuid
+  campaignId            String?       @db.Uuid
+  lobbyId               String?       @db.Uuid
+  subjectId             String?       @db.Uuid
   preparationId         String?       @db.Uuid
   questionIds           String[]      @default([])
+  /// [{ gateId, questionId }] fixed by the server when the session starts.
+  slots                 Json          @default("[]")
+  /// Resolved gameplay, content, branding and sections at start time.
+  config                Json          @default("{}")
+  checkpoint            Json?
+  checkpointSeq         Int           @default(0)
+  hintsUsed             String[]      @default([])
+  outcome               SessionOutcome?
+  flags                 String[]      @default([])
+  expiresAt             DateTime?
+  lastSeenAt            DateTime?
+  completionRequestId   String?
   status                SessionStatus @default(IN_PROGRESS)
   startedAt             DateTime      @default(now())
   endedAt               DateTime?
@@ -230,23 +486,34 @@ model GameSession {
   accuracy              Float         @default(0)
   score                 Int           @default(0)
   topicsNeedImprovement String[]
+  maxScore              Int           @default(0)
   user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization          Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  subject               Subject       @relation(fields: [subjectId], references: [id])
+  subject               Subject?      @relation(fields: [subjectId], references: [id])
+  campaign              Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   answers               GameAnswer[]
   result                GameResult?
+  tickets               LaunchTicket[]
+  lobby                 Lobby?        @relation(fields: [lobbyId], references: [id], onDelete: SetNull)
+  lobbyPlayer           LobbyPlayer?
 
   @@index([userId, startedAt])
   @@index([organizationId, startedAt])
+  @@index([lobbyId])
 }
 
 model GameAnswer {
   id         String      @id @default(uuid()) @db.Uuid
   sessionId  String      @db.Uuid
   questionId String      @db.Uuid
+  gateId     String      @default("")
   answer     Json
   isCorrect  Boolean
   points     Int         @default(0)
+  attempts   Int         @default(1)
+  resolved   Boolean     @default(true)
+  /// Bounded list of { requestId, answer, correct, ms } used for idempotent retries and review.
+  history    Json        @default("[]")
   answeredAt DateTime    @default(now())
   session    GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   question   Question    @relation(fields: [questionId], references: [id])
@@ -260,7 +527,12 @@ model GameResult {
   sessionId             String        @unique @db.Uuid
   userId                String        @db.Uuid
   organizationId        String?       @db.Uuid
-  subjectId             String        @db.Uuid
+  subjectId             String?       @db.Uuid
+  campaignId            String?       @db.Uuid
+  groupId               String?       @db.Uuid
+  outcome               SessionOutcome?
+  maxScore              Int           @default(0)
+  flags                 String[]      @default([])
   durationSeconds       Int
   correctAnswers        Int
   incorrectAnswers      Int
@@ -272,10 +544,11 @@ model GameResult {
   session               GameSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization          Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  subject               Subject       @relation(fields: [subjectId], references: [id])
+  subject               Subject?      @relation(fields: [subjectId], references: [id])
 
   @@index([userId, createdAt])
   @@index([organizationId, createdAt])
+  @@index([campaignId])
 }
 
 model AuditLog {
@@ -286,10 +559,79 @@ model AuditLog {
   targetType     String
   targetId       String?
   metadata       Json         @default("{}")
+  /// ADMIN, AUTH, SECURITY or ACTIVITY
+  category       String       @default("ADMIN")
+  ip             String?
   createdAt      DateTime     @default(now())
   actor          User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@index([organizationId])
+  @@index([category, createdAt])
+}
+
+/// A room where a class plays the same campaign at the same time.
+model Lobby {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  hostId         String       @db.Uuid
+  campaignId     String?      @db.Uuid
+  title          String
+  /// Six digits. A partial unique index keeps it unique among rooms that are not finished.
+  code           String
+  status         LobbyStatus  @default(WAITING)
+  maxPlayers     Int          @default(20)
+  createdAt      DateTime     @default(now())
+  startedAt      DateTime?
+  endedAt        DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  host           User         @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  campaign       Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  players        LobbyPlayer[]
+  sessions       GameSession[]
+
+  @@index([organizationId, createdAt])
+  @@index([code])
+}
+
+model LobbyPlayer {
+  id         String       @id @default(uuid()) @db.Uuid
+  lobbyId    String       @db.Uuid
+  userId     String       @db.Uuid
+  sessionId  String?      @unique @db.Uuid
+  nickname   String
+  color      Int          @default(0)
+  kicked     Boolean      @default(false)
+  joinedAt   DateTime     @default(now())
+  lastSeenAt DateTime     @default(now())
+  /// Last known position, shown to the other players. Never used for scoring.
+  x          Float        @default(0)
+  y          Float        @default(0)
+  dir        String       @default("down")
+  moving     Boolean      @default(false)
+  hidden     Boolean      @default(false)
+  phrase     String?
+  phraseAt   DateTime?
+  /// Written by the server when answers are graded and when the session ends.
+  progress   Int          @default(0)
+  score      Int          @default(0)
+  outcome    SessionOutcome?
+  finishedAt DateTime?
+  durationMs Int?
+  lobby      Lobby        @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session    GameSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@unique([lobbyId, userId])
+  @@unique([lobbyId, nickname])
+}
+
+/// Fixed-window counters. Stored in the database because serverless instances share no memory.
+model RateLimit {
+  key       String   @id
+  hits      Int      @default(0)
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }

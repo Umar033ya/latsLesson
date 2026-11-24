@@ -1,35 +1,44 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { z } from 'zod';
 import { Role } from '@last-lesson/shared-types';
-import { JwtAuthGuard, RolesGuard } from '../common/guards';
-import { CurrentUser, Roles } from '../common/decorators';
-import { zodPipe } from '../common/zod-validation.pipe';
-import { preparationSchema } from '@last-lesson/validation';
+import { practiceAnswerSchema, preparationSchema } from '@last-lesson/validation';
+import { Auth } from '../common/guards';
+import type { Locale } from '@last-lesson/scenario';
+import { CurrentUser, Lang } from '../common/decorators';
+import { RateLimit, RateLimitGuard } from '../common/rate-limit';
+import { IdPipe, zodPipe } from '../common/zod-validation.pipe';
+import type { Actor } from '../common/actor';
 import { AiPreparationService } from './ai-preparation.service';
 
+/** Study before playing. Nothing here is used while a game session is running. */
 @ApiTags('ai-preparation')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@Auth(Role.GAMER)
+@UseGuards(RateLimitGuard)
 @Controller('ai-preparation')
 export class AiPreparationController {
   constructor(private readonly service: AiPreparationService) {}
 
   @Post()
-  @Roles(Role.GAMER)
-  @ApiOperation({ summary: 'Prepare for a game. AI is never called during gameplay.' })
-  create(@Body(zodPipe(preparationSchema)) body: any, @CurrentUser() user: any) {
-    return this.service.create(body, user);
+  @RateLimit('preparation', 30, 3600)
+  @ApiOperation({ summary: 'Build a study guide from prepared materials, optionally extended by an AI provider' })
+  create(@Body(zodPipe(preparationSchema)) body: z.infer<typeof preparationSchema>, @CurrentUser() user: Actor, @Lang() lang: Locale) {
+    return this.service.create(body, user, lang);
   }
 
   @Get('mine')
-  @Roles(Role.GAMER)
-  mine(@CurrentUser() user: any) {
+  mine(@CurrentUser() user: Actor) {
     return this.service.mine(user.id);
   }
 
   @Get(':id')
-  @Roles(Role.GAMER, Role.CENTER_ADMIN, Role.SUPER_ADMIN)
-  findOne(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.service.findOne(id, user);
+  findOne(@Param('id', IdPipe) id: string, @CurrentUser() user: Actor, @Lang() lang: Locale) {
+    return this.service.findOne(id, user, lang);
+  }
+
+  @Post(':id/practice')
+  @HttpCode(200)
+  practice(@Param('id', IdPipe) id: string, @Body(zodPipe(practiceAnswerSchema)) body: { questionId: string; answer: unknown }, @CurrentUser() user: Actor, @Lang() lang: Locale) {
+    return this.service.practice(id, body, user, lang);
   }
 }

@@ -1,18 +1,11 @@
 import { createParamDecorator, ExecutionContext, SetMetadata } from '@nestjs/common';
+import { toLocale } from '@last-lesson/scenario';
 import { Role } from '@last-lesson/shared-types';
 
 export const ROLES_KEY = 'roles';
 export const Roles = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);
 
-export const ORG_ACCESS_KEY = 'org_access';
-/**
- * Guards an endpoint by resolving the organization id from the given source.
- * 'param' reads :organizationId (or :id) from the route, 'body' reads body.organizationId.
- * SUPER_ADMIN bypasses the check. All other roles must be an assigned admin or a member.
- */
-export const RequireOrgAccess = (source: 'param' | 'body' = 'param') => SetMetadata(ORG_ACCESS_KEY, source);
-
-export const CurrentUser = createParamDecorator((_data: unknown, ctx: ExecutionContext) => {
-  const request = ctx.switchToHttp().getRequest();
-  return request.user;
-});
+export const CurrentUser = createParamDecorator((_data: unknown, ctx: ExecutionContext) => ctx.switchToHttp().getRequest().user);
+/** Reader's language: an explicit header from our clients, English otherwise. */
+export const Lang = createParamDecorator((_data: unknown, ctx: ExecutionContext) => toLocale(ctx.switchToHttp().getRequest().headers['x-ll-lang']));
+export const ClientIp = createParamDecorator((_data: unknown, ctx: ExecutionContext) => ctx.switchToHttp().getRequest().ip);

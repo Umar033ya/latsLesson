@@ -1,9 +1,24 @@
-import { PrismaClient, Difficulty, QuestionType } from '@prisma/client';
+/**
+ * Idempotent seed: plans, subjects, the official question bank, learning materials, an official
+ * campaign, and two demo centers (two, so tenant isolation can be seen).
+ */
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { createHmac } from 'node:crypto';
 import * as argon2 from 'argon2';
-import { createHash } from 'node:crypto';
+import { PrismaClient, Difficulty, QuestionType, type Prisma } from '@prisma/client';
+import { validateQuestionContent, campaignConfigSchema, centerSettingsSchema } from '@last-lesson/validation';
+import { EXTRA_QUESTIONS, MATERIALS, type SeedQuestion } from './seed-content';
+import { CAMPAIGN_TEXT, EXTRA_ANSWERS, MATERIAL_TEXT, QUESTION_TEXT } from './seed-translations';
+
+for (const file of ['.env', '../../.env']) if (existsSync(resolve(file))) process.loadEnvFile(resolve(file));
+if (!process.env.CODE_PEPPER) throw new Error('CODE_PEPPER is not set (see .env.example)');
+const password = process.env.SEED_PASSWORD || (process.env.NODE_ENV === 'production' ? '' : 'LastLesson-2026');
+if (!password) throw new Error('SEED_PASSWORD must be set in production');
 
 const prisma = new PrismaClient();
-const hash = (value: string) => createHash('sha256').update(value).digest('hex');
+const normalize = (code: string) => code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+const codeHash = (code: string) => createHmac('sha256', process.env.CODE_PEPPER!).update(normalize(code)).digest('hex');
 
 const SUBJECTS = [
   {
@@ -48,16 +63,7 @@ const SUBJECTS = [
   },
 ] as const;
 
-type RawQuestion = {
-  subject: string;
-  topic: string;
-  difficulty: Difficulty;
-  type: QuestionType;
-  prompt: string;
-  options: unknown;
-  correct: unknown;
-  explanation: string;
-};
+type RawQuestion = SeedQuestion;
 
 const mcq = (prompt: string, options: string[], correctIndex: number, explanation: string, topic: string, subject: string, difficulty: Difficulty): RawQuestion => ({
   subject,
@@ -176,57 +182,37 @@ const RAW_QUESTIONS: RawQuestion[] = [
   },
 ];
 
-async function main() {
-  console.log('Seeding LAST LESSON database...');
-  const passwordHash = await argon2.hash('Admin123!', { type: argon2.argon2id });
-
-  const superAdmin = await prisma.user.upsert({
-    where: { email: 'super@lastlesson.dev' },
-    create: { email: 'super@lastlesson.dev', passwordHash, firstName: 'System', lastName: 'Administrator', role: 'SUPER_ADMIN' },
-    update: { role: 'SUPER_ADMIN' },
-  });
-
-  const centerAdmin = await prisma.user.upsert({
-    where: { email: 'admin@lastlesson.dev' },
-    create: { email: 'admin@lastlesson.dev', passwordHash, firstName: 'Ada', lastName: 'Center', role: 'CENTER_ADMIN' },
-    update: { role: 'CENTER_ADMIN' },
-  });
-
-  const gamer = await prisma.user.upsert({
-    where: { email: 'student@lastlesson.dev' },
-    create: { email: 'student@lastlesson.dev', passwordHash, firstName: 'Sam', lastName: 'Student', role: 'GAMER' },
-    update: { role: 'GAMER' },
-  });
-
-  const org = await prisma.organization.upsert({
-    where: { slug: 'demo-academy' },
-    create: { name: 'Demo Academy', slug: 'demo-academy', logoUrl: null, status: 'ACTIVE' },
-    update: { status: 'ACTIVE' },
-  });
-
-  await prisma.organizationAdmin.upsert({
-    where: { userId_organizationId: { userId: centerAdmin.id, organizationId: org.id } },
-    create: { userId: centerAdmin.id, organizationId: org.id },
-    update: {},
-  });
-  await prisma.membership.upsert({
-    where: { userId_organizationId: { userId: gamer.id, organizationId: org.id } },
-    create: { userId: gamer.id, organizationId: org.id },
-    update: {},
-  });
-
-  const demoCode = 'LL-DEMO-2026';
+/** Re-creating a known demo code is allowed only outside production. */
+async function demoCode(code: string, data: Omit<Prisma.InvitationCodeUncheckedCreateInput, 'codeHash' | 'hint' | 'expiresAt'>) {
+  const expiresAt = new Date(Date.now() + 365 * 86_400_000);
   await prisma.invitationCode.upsert({
-    where: { codeHash: hash(demoCode) },
-    create: {
-      codeHash: hash(demoCode),
-      organizationId: org.id,
-      createdById: superAdmin.id,
-      expiresAt: new Date(Date.now() + 365 * 86400000),
-      maxUses: 1000,
-    },
-    update: { isActive: true, revokedAt: null },
+    where: { codeHash: codeHash(code) },
+    create: { ...data, codeHash: codeHash(code), hint: normalize(code).slice(-4), expiresAt },
+    update: { ...data, isActive: true, revokedAt: null, expiresAt },
   });
+}
+
+async function user(email: string, firstName: string, lastName: string, role: 'SUPER_ADMIN' | 'CENTER_ADMIN') {
+  const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+  return prisma.user.upsert({ where: { email }, create: { email, passwordHash, firstName, lastName, role }, update: { role, passwordHash, status: 'ACTIVE', failedLogins: 0, lockedUntil: null } });
+}
+
+async function main() {
+  const all: SeedQuestion[] = [...RAW_QUESTIONS, ...EXTRA_QUESTIONS];
+  for (const q of all) {
+    const issues = validateQuestionContent(q.type, q.options, q.correct);
+    if (issues.length) throw new Error(`Invalid seed question "${q.prompt}": ${issues[0].message}`);
+  }
+
+  const superAdmin = await user('super@lastlesson.dev', 'Platform', 'Owner', 'SUPER_ADMIN');
+
+  const plans = [
+    { key: 'trial', name: 'Trial', description: 'Try the platform with one class.', maxStudents: 30, maxGroups: 3, maxCampaigns: 2, maxQuestions: 100, features: { branding: false, customNotes: false, aiPreparation: false }, sortOrder: 0 },
+    { key: 'center', name: 'Center', description: 'For one education center.', maxStudents: 300, maxGroups: 30, maxCampaigns: 25, maxQuestions: 2000, features: {}, sortOrder: 1 },
+    { key: 'network', name: 'Network', description: 'For networks with several branches.', maxStudents: 5000, maxGroups: 300, maxCampaigns: 200, maxQuestions: 20000, features: {}, sortOrder: 2 },
+  ];
+  const planIds = new Map<string, string>();
+  for (const p of plans) planIds.set(p.key, (await prisma.plan.upsert({ where: { key: p.key }, create: p, update: {} })).id);
 
   const subjectIds = new Map<string, string>();
   const topicIds = new Map<string, string>();
@@ -234,45 +220,109 @@ async function main() {
     const record = await prisma.subject.upsert({
       where: { slug: subject.slug },
       create: { slug: subject.slug, name: subject.name, description: subject.description, icon: subject.icon, color: subject.color },
-      update: { name: subject.name, isActive: true },
+      update: { name: subject.name },
     });
     subjectIds.set(subject.slug, record.id);
     for (const topic of subject.topics) {
       const slug = topic.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const t = await prisma.topic.upsert({
-        where: { subjectId_slug: { subjectId: record.id, slug } },
-        create: { subjectId: record.id, name: topic, slug },
-        update: {},
-      });
+      const t = await prisma.topic.upsert({ where: { subjectId_slug: { subjectId: record.id, slug } }, create: { subjectId: record.id, name: topic, slug }, update: {} });
       topicIds.set(`${subject.slug}:${topic}`, t.id);
     }
   }
 
-  for (const q of RAW_QUESTIONS) {
+  for (const q of all) {
     const subjectId = subjectIds.get(q.subject)!;
-    const topicId = topicIds.get(`${q.subject}:${q.topic}`)!;
-    const existing = await prisma.question.findFirst({
-      where: { subjectId, prompt: q.prompt, organizationId: null },
-    });
+    const topicId = topicIds.get(`${q.subject}:${q.topic}`);
+    if (!topicId) throw new Error(`Unknown topic ${q.subject}:${q.topic}`);
     const data = {
-      subjectId,
-      topicId,
-      type: q.type,
-      difficulty: q.difficulty,
-      prompt: q.prompt,
-      options: q.options as object,
-      correctAnswer: q.correct as object,
-      explanation: q.explanation,
-      points: q.difficulty === 'HARD' ? 20 : q.difficulty === 'MEDIUM' ? 15 : 10,
-      isActive: true,
+      subjectId, topicId, type: q.type, difficulty: q.difficulty, prompt: q.prompt, options: q.options as Prisma.InputJsonValue, correctAnswer: (EXTRA_ANSWERS[q.prompt] ? [...(q.correct as string[]), ...EXTRA_ANSWERS[q.prompt]] : q.correct) as Prisma.InputJsonValue, translations: (QUESTION_TEXT[q.prompt] ?? {}) as Prisma.InputJsonValue,
+      explanation: q.explanation, hint: q.hint ?? null, points: q.difficulty === 'HARD' ? 20 : q.difficulty === 'MEDIUM' ? 15 : 10, status: 'PUBLISHED' as const, isActive: true,
     };
+    const existing = await prisma.question.findFirst({ where: { subjectId, prompt: q.prompt, organizationId: null } });
     if (existing) await prisma.question.update({ where: { id: existing.id }, data });
     else await prisma.question.create({ data });
   }
 
-  console.log('Seed complete.');
-  console.log('Accounts: super@lastlesson.dev / admin@lastlesson.dev / student@lastlesson.dev  (password: Admin123!)');
-  console.log(`Demo invitation code: ${demoCode}`);
+  for (const m of MATERIALS) {
+    const subjectId = subjectIds.get(m.subject)!;
+    const data = { subjectId, topicId: topicIds.get(`${m.subject}:${m.topic}`) ?? null, title: m.title, body: m.body, examples: m.examples, translations: (MATERIAL_TEXT[m.title] ?? {}) as Prisma.InputJsonValue };
+    const existing = await prisma.learningMaterial.findFirst({ where: { title: m.title, organizationId: null } });
+    if (existing) await prisma.learningMaterial.update({ where: { id: existing.id }, data });
+    else await prisma.learningMaterial.create({ data });
+  }
+
+  const campaign = async (title: string, organizationId: string | null, description: string, config: unknown) => {
+    const data = { description, config: campaignConfigSchema.parse(config) as unknown as Prisma.InputJsonValue, status: 'PUBLISHED' as const, publishedAt: new Date(), translations: (CAMPAIGN_TEXT[title] ?? {}) as Prisma.InputJsonValue };
+    const existing = await prisma.campaign.findFirst({ where: { title, organizationId } });
+    return existing ? prisma.campaign.update({ where: { id: existing.id }, data: { translations: data.translations } }) : prisma.campaign.create({ data: { ...data, title, organizationId } });
+  };
+  const ids = (...slugs: string[]) => slugs.map((s) => subjectIds.get(s)!);
+  await campaign('The Last Lesson', null, 'The full story of Room 9-B. Mathematics, English and biology in one night.', {
+    source: { subjectIds: ids('mathematics', 'english', 'biology') },
+    difficulty: 'MEDIUM',
+    objectives: ['Find a way out of School No. 47', 'Learn why the bell never rang'],
+  });
+  await campaign('Short Period: Science', null, 'A shorter visit for one lesson. Biology and physics, easier questions.', {
+    sections: ['classroom', 'library', 'biology', 'boiler', 'lobby'],
+    source: { subjectIds: ids('biology', 'physics') },
+    difficulty: 'EASY',
+    objectives: ['Restore the power', 'Leave before the bell'],
+    gameplay: { sessionMinutes: 20, tension: 'CALM' },
+  });
+
+  const center = async (slug: string, name: string, city: string, plan: string, settings: unknown) =>
+    prisma.organization.upsert({
+      where: { slug },
+      create: { slug, name, city, planId: planIds.get(plan), subscriptionEndsAt: new Date(Date.now() + 365 * 86_400_000), settings: centerSettingsSchema.parse(settings) as unknown as Prisma.InputJsonValue },
+      update: { status: 'ACTIVE' },
+    });
+  const demo = await center('demo-academy', 'Demo Academy', 'Samarkand', 'center', {
+    branding: { displayName: 'Demo Academy', accent: '#d9a441', theme: 'MIDNIGHT' },
+    content: {
+      openingLine: 'Demo Academy evening class. If you can hear this, look for the torch.',
+      announcement: 'Olympiad registration closes on Friday. See the notice board by Room 9-B.',
+      closingLine: 'Well done. Bring this result to your next lesson.',
+      notes: [{ title: 'Reminder from the biology teacher', body: 'A pairs with T. G pairs with C. Write it on your hand if you must.' }],
+    },
+  });
+  const other = await center('riverside', 'Riverside Learning Center', 'Tashkent', 'trial', {});
+
+  for (const [email, first, last, org] of [
+    ['admin@lastlesson.dev', 'Ada', 'Karimova', demo.id],
+    ['riverside@lastlesson.dev', 'Timur', 'Saidov', other.id],
+  ] as const) {
+    const admin = await user(email, first, last, 'CENTER_ADMIN');
+    await prisma.organizationAdmin.upsert({ where: { userId_organizationId: { userId: admin.id, organizationId: org } }, create: { userId: admin.id, organizationId: org }, update: {} });
+  }
+
+  const teacher = await user('teacher@lastlesson.dev', 'Nodira', 'Yusupova', 'TEACHER');
+  await prisma.user.update({ where: { id: teacher.id }, data: { homeOrganizationId: demo.id } });
+
+  const group = (organizationId: string, name: string) => prisma.group.upsert({ where: { organizationId_name: { organizationId, name } }, create: { organizationId, name }, update: {} });
+  const g9a = await group(demo.id, '9-A evening');
+  const g9b = await group(demo.id, '9-B weekend');
+  await group(other.id, 'Beginners');
+
+  const student = async (organizationId: string, groupId: string, firstName: string, lastName: string) => {
+    const existing = await prisma.user.findFirst({ where: { firstName, lastName, homeOrganizationId: organizationId } });
+    if (existing) return existing;
+    return prisma.user.create({ data: { firstName, lastName, role: 'GAMER', homeOrganizationId: organizationId, memberships: { create: { organizationId, groupId } } } });
+  };
+  const sam = await student(demo.id, g9b.id, 'Sam', 'Student');
+  for (const [f, l, g] of [['Malika', 'Yusupova', g9a.id], ['Jasur', 'Rahimov', g9a.id], ['Nilufar', 'Aliyeva', g9b.id], ['Bekzod', 'Tursunov', g9b.id]] as const) await student(demo.id, g, f, l);
+
+  if (process.env.NODE_ENV !== 'production') {
+    await demoCode('LL-DEMO-2026', { organizationId: demo.id, groupId: g9b.id, createdById: superAdmin.id, maxUses: 1000, kind: 'GROUP', label: 'Demo group code' });
+    await demoCode('LL-PLAY-2026', { organizationId: demo.id, studentId: sam.id, createdById: superAdmin.id, maxUses: 10000, kind: 'PERSONAL' });
+  }
+
+  console.log(`Seeded ${all.length} questions, ${MATERIALS.length} materials, 2 centers.`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`Super admin:   super@lastlesson.dev / ${password}`);
+    console.log(`Teacher:       teacher@lastlesson.dev / ${password}`);
+    console.log(`Center admin:  admin@lastlesson.dev / ${password}  (second center: riverside@lastlesson.dev)`);
+    console.log('Student codes: LL-PLAY-2026 (personal), LL-DEMO-2026 (group)');
+  }
 }
 
 main()

@@ -1,0 +1,29 @@
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: lastlesson, POSTGRES_PASSWORD: lastlesson, POSTGRES_DB: lastlesson_test }
+        ports: ['5433:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://lastlesson:lastlesson@127.0.0.1:5433/lastlesson_test?schema=public
+      DATABASE_URL_UNPOOLED: postgresql://lastlesson:lastlesson@127.0.0.1:5433/lastlesson_test?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm i -g pnpm@12.5.1
+      - run: pnpm install --frozen-lockfile
+      - run: npx prisma generate --schema prisma/schema.prisma
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build

@@ -1,0 +1,7 @@
+**/node_modules
+**/dist
+.git
+.pgdata
+.env
+test-results
+vercel-dist

@@ -2,37 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-  background: #0b0f1a;
-  color: #e2e8f0;
+@font-face { font-family: 'Golos'; src: url('/fonts/golos.woff2') format('woff2'); font-weight: 400 900; font-display: swap; }
+@font-face { font-family: 'Dot'; src: url('/fonts/dotgothic16.woff2') format('woff2'); font-display: swap; }
+/* The base pixel font has full-width Cyrillic, so Russian text takes its letters from a proportional one. */
+@font-face { font-family: 'Dot'; src: url('/fonts/handjet-cyrillic.woff2') format('woff2'); size-adjust: 116%; font-display: swap; unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+@font-face { font-family: 'Jac'; src: url('/fonts/jacquard24.woff2') format('woff2'); font-display: swap; }
+
+@layer base {
+  :root {
+    --paper: 241 244 240; --sheet: 255 255 255; --well: 246 248 245; --rule: 221 228 221; --ink: 23 38 36; --soft: 90 107 103;
+    --accent: 18 88 74; --accent-ink: 255 255 255; --accent-soft: 224 240 233;
+    --pencil: 190 52 62; --pencil-dark: 146 32 44; --pencil-pale: 251 231 230;
+    --amber: 196 127 23; --amber-dark: 122 74 12; --amber-pale: 253 240 216;
+    --moss: 24 112 79; --moss-pale: 220 243 231; --sky: 38 98 138; --sky-pale: 224 238 247;
+    --s1: 11 138 99; --s2: 196 127 23; --track: 228 234 227;
+    color-scheme: light;
+  }
+  :root[data-theme='night'] {
+    --paper: 13 17 22; --sheet: 21 27 34; --well: 27 34 43; --rule: 43 53 65; --ink: 232 238 236; --soft: 151 167 170;
+    --accent: 224 168 72; --accent-ink: 20 16 8; --accent-soft: 58 47 28;
+    --pencil: 224 100 98; --pencil-dark: 245 150 142; --pencil-pale: 66 31 33;
+    --amber: 224 168 72; --amber-dark: 243 205 132; --amber-pale: 59 46 24;
+    --moss: 110 200 160; --moss-pale: 24 55 45; --sky: 126 186 224; --sky-pale: 25 47 63;
+    --s1: 31 163 124; --s2: 192 122 28; --track: 39 48 59;
+    color-scheme: dark;
+  }
+  html { @apply bg-paper text-ink; }
+  body { @apply m-0 font-sans text-[15px] leading-normal antialiased; }
+  ::selection { background: #e0a84866; }
+  :focus-visible { outline: 2px solid rgb(var(--amber)); outline-offset: 2px; }
+  table { font-variant-numeric: tabular-nums; }
 }
-
-* { box-sizing: border-box; }
-html, body, #root { min-height: 100%; margin: 0; }
-body { background: radial-gradient(circle at 15% -10%, #1b2236 0%, #0b0f1a 45%); }
-
-::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-track { background: #0b0f1a; }
-::-webkit-scrollbar-thumb { background: #2a3346; border-radius: 8px; }
-::-webkit-scrollbar-thumb:hover { background: #3c475e; }
-
 @layer components {
-  .card { @apply rounded-xl border border-white/10 bg-panel/80 backdrop-blur shadow-xl shadow-black/20; }
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50; }
-  .btn-primary { @apply btn bg-blood text-white hover:bg-red-500 shadow-glow; }
-  .btn-secondary { @apply btn border border-white/15 bg-white/5 text-slate-200 hover:bg-white/10; }
-  .btn-ghost { @apply btn text-slate-400 hover:bg-white/5 hover:text-white; }
-  .input { @apply w-full rounded-lg border border-white/10 bg-ink/70 px-3.5 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-blood focus:ring-2 focus:ring-blood/20; }
-  .label { @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400; }
-  .badge { @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold; }
-  .table-wrap { @apply overflow-x-auto rounded-xl border border-white/10; }
-  .table { @apply w-full min-w-[640px] text-left text-sm; }
-  .table th { @apply bg-white/5 px-4 py-3 text-xs uppercase tracking-wider text-slate-400; }
-  .table td { @apply border-t border-white/5 px-4 py-3 text-slate-300; }
-  .table tr:hover td { @apply bg-white/[0.03]; }
+  .btn { @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-main { @apply btn bg-accent text-accent-ink hover:opacity-90; }
+  .btn-line { @apply btn border border-rule bg-sheet text-ink hover:border-soft; }
+  .btn-quiet { @apply btn px-2 text-soft hover:bg-well hover:text-ink; }
+  .btn-red { @apply btn border border-pencil/40 bg-sheet text-pencil-dark hover:bg-pencil-pale; }
+  .field { @apply w-full rounded-lg border border-rule bg-sheet px-3 py-2 text-[15px] text-ink placeholder:text-soft/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 disabled:bg-well disabled:text-soft; }
+  .lbl { @apply mb-1 block text-[13px] font-semibold text-soft; }
+  .sheet { @apply rounded-xl border border-rule bg-sheet shadow-sheet; }
+  .reg { @apply w-full border-collapse text-left text-sm; }
+  .reg th { @apply border-b border-rule px-3 py-2.5 text-[13px] font-semibold text-soft; }
+  .reg td { @apply border-b border-rule px-3 py-3 align-middle; }
+  .reg tbody tr:last-child td { @apply border-b-0; }
+  .reg tbody tr:hover td { @apply bg-well; }
+  .tag { @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold; }
+  .night { @apply min-h-screen bg-night text-bone; }
+  .nbtn { @apply inline-flex items-center justify-center gap-2 bg-lamp px-5 py-2.5 font-dot text-lg text-night transition-colors hover:bg-[#f6dd96] disabled:opacity-50; }
+  .nbtn-line { @apply inline-flex items-center justify-center gap-2 border border-night-4 px-4 py-2 font-dot text-fog transition-colors hover:border-lamp hover:text-bone disabled:opacity-50; }
+  .nfield { @apply w-full border border-night-4 bg-night-2 px-3 py-2.5 text-bone placeholder:text-[#6d7f92] focus:border-lamp focus:outline-none; }
+  .npanel { @apply border border-night-4 bg-night-2; }
 }
-
-.pixel-font { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.game-frame { box-shadow: 0 0 0 1px rgba(239, 68, 68, .25), 0 25px 80px rgba(0, 0, 0, .6); }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

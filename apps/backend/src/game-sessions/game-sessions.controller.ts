@@ -1,54 +1,44 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { completeSessionSchema, createSessionSchema } from '@last-lesson/validation';
+import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@last-lesson/shared-types';
-import { JwtAuthGuard, RolesGuard } from '../common/guards';
-import { CurrentUser, Roles } from '../common/decorators';
-import { zodPipe } from '../common/zod-validation.pipe';
+import { launchSchema } from '@last-lesson/validation';
+import { Auth } from '../common/guards';
+import { CurrentUser } from '../common/decorators';
+import { RateLimit, RateLimitGuard } from '../common/rate-limit';
+import { IdPipe, zodPipe } from '../common/zod-validation.pipe';
+import type { Actor } from '../common/actor';
 import { GameSessionsService } from './game-sessions.service';
 
+/** Platform side of a session: start, resume, history. The running game uses /play. */
 @ApiTags('game-sessions')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@Auth(Role.GAMER)
+@UseGuards(RateLimitGuard)
 @Controller('game-sessions')
 export class GameSessionsController {
   constructor(private readonly service: GameSessionsService) {}
 
-  @Post()
-  @Roles(Role.GAMER)
-  @ApiOperation({ summary: 'Start a game. Questions contain no answers and are fixed for this session.' })
-  create(@Body(zodPipe(createSessionSchema)) body: any, @CurrentUser() user: any) {
-    return this.service.create(body, user);
+  @Post('launch')
+  @RateLimit('launch', 60, 600)
+  @ApiOperation({ summary: 'Start a campaign. Returns a one-time link to the game.' })
+  launch(@Body(zodPipe(launchSchema)) body: { campaignId: string; preparationId?: string | null }, @CurrentUser() user: Actor) {
+    return this.service.launch(body, user);
   }
 
-  @Get('history')
-  @Roles(Role.GAMER)
-  history(@CurrentUser() user: any) {
-    return this.service.history(user.id);
-  }
-
-  @Get(':id')
-  @Roles(Role.GAMER, Role.CENTER_ADMIN, Role.SUPER_ADMIN)
-  findOne(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.service.findOne(id, user);
-  }
-
-  @Post(':id/answers')
-  @Roles(Role.GAMER)
-  @ApiOperation({ summary: 'Submit one answer. Grading happens on the server.' })
-  submit(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
-    return this.service.submitAnswer(id, body, user);
-  }
-
-  @Post(':id/complete')
-  @Roles(Role.GAMER)
-  complete(@Param('id') id: string, @Body(zodPipe(completeSessionSchema)) body: any, @CurrentUser() user: any) {
-    return this.service.complete(id, body, user);
+  @Post(':id/resume')
+  @HttpCode(200)
+  @RateLimit('resume', 60, 600)
+  resume(@Param('id', IdPipe) id: string, @CurrentUser() user: Actor) {
+    return this.service.resume(id, user);
   }
 
   @Post(':id/abandon')
-  @Roles(Role.GAMER)
-  abandon(@Param('id') id: string, @CurrentUser() user: any) {
+  @HttpCode(200)
+  abandon(@Param('id', IdPipe) id: string, @CurrentUser() user: Actor) {
     return this.service.abandon(id, user);
+  }
+
+  @Get('history')
+  history(@CurrentUser() user: Actor) {
+    return this.service.history(user.id);
   }
 }

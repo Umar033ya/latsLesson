@@ -1,8 +1,16 @@
 import { Module } from '@nestjs/common';
-import { CommonModule } from '../common/common.module';
-import { QuestionsModule } from '../questions/questions.module';
+import { JwtModule } from '@nestjs/jwt';
+import { CampaignsModule } from '../campaigns/campaigns.module';
 import { GameSessionsController } from './game-sessions.controller';
 import { GameSessionsService } from './game-sessions.service';
+import { GameTokenGuard } from './game-token.guard';
+import { PlayController } from './play.controller';
+import { PlayService } from './play.service';
 
-@Module({ imports: [CommonModule, QuestionsModule], controllers: [GameSessionsController], providers: [GameSessionsService], exports: [GameSessionsService] })
+@Module({
+  imports: [JwtModule.register({}), CampaignsModule],
+  controllers: [GameSessionsController, PlayController],
+  providers: [GameSessionsService, PlayService, GameTokenGuard],
+  exports: [GameSessionsService, PlayService],
+})
 export class GameSessionsModule {}

@@ -1,12 +1,18 @@
 import { Global, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { AccessService } from './access.service';
 import { AuditService } from './audit.service';
 import { PrismaService } from './prisma.service';
-import { JwtAuthGuard, OrgAccessGuard, RolesGuard } from './guards';
+import { JwtAuthGuard, RolesGuard } from './guards';
+import { HealthController } from './health.controller';
+import { RateLimitGuard, RateLimitService } from './rate-limit';
+
+const shared = [PrismaService, AuditService, AccessService, RateLimitService, JwtAuthGuard, RolesGuard, RateLimitGuard];
 
 @Global()
 @Module({
-  providers: [PrismaService, AuditService, Reflector, JwtAuthGuard, RolesGuard, OrgAccessGuard],
-  exports: [PrismaService, AuditService, JwtAuthGuard, RolesGuard, OrgAccessGuard],
+  controllers: [HealthController],
+  providers: [...shared, Reflector],
+  exports: shared,
 })
 export class CommonModule {}

@@ -1,32 +1,32 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Role } from '@last-lesson/shared-types';
-import { JwtAuthGuard, RolesGuard } from '../common/guards';
-import { CurrentUser, Roles } from '../common/decorators';
+import { Auth } from '../common/guards';
+import { CurrentUser } from '../common/decorators';
+import { OptionalIdPipe } from '../common/zod-validation.pipe';
+import { resolveOrg, type Actor } from '../common/actor';
 import { AnalyticsService } from './analytics.service';
 
 @ApiTags('analytics')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('analytics')
 export class AnalyticsController {
   constructor(private readonly service: AnalyticsService) {}
 
   @Get('platform')
-  @Roles(Role.SUPER_ADMIN)
+  @Auth(Role.SUPER_ADMIN)
   platform() {
     return this.service.platform();
   }
 
   @Get('organization')
-  @Roles(Role.SUPER_ADMIN, Role.CENTER_ADMIN)
-  organization(@CurrentUser() user: any, @Query('organizationId') organizationId?: string) {
-    return this.service.organization(user, organizationId);
+  @Auth(Role.SUPER_ADMIN, Role.CENTER_ADMIN)
+  organization(@CurrentUser() user: Actor, @Query('organizationId', OptionalIdPipe) organizationId?: string, @Query('groupId', OptionalIdPipe) groupId?: string, @Query('days') days?: string) {
+    return this.service.organization(resolveOrg(user, organizationId), { groupId, days: Math.min(365, Math.max(7, Number(days) || 30)) });
   }
 
   @Get('personal')
-  @Roles(Role.GAMER, Role.CENTER_ADMIN, Role.SUPER_ADMIN)
-  personal(@CurrentUser() user: any) {
-    return this.service.personal(user.id);
+  @Auth(Role.GAMER)
+  personal(@CurrentUser() user: Actor) {
+    return this.service.student(user.id);
   }
 }

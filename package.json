@@ -4,25 +4,39 @@
   "version": "1.0.0",
   "description": "LAST LESSON - educational horror survival platform (web + PWA)",
   "scripts": {
-    "dev": "pnpm --parallel --filter @last-lesson/backend --filter @last-lesson/web dev",
-    "build": "pnpm -r build",
-    "test": "pnpm -r test",
+    "setup": "node scripts/setup.mjs",
+    "dev": "pnpm build:packages && pnpm --parallel --filter @last-lesson/backend --filter @last-lesson/web --filter @last-lesson/game dev",
+    "build:packages": "pnpm --filter \"./packages/*\" build",
+    "build": "pnpm build:packages && pnpm --filter \"./apps/*\" --filter @last-lesson/game build",
+    "test": "pnpm build:packages && pnpm -r test",
+    "test:e2e": "playwright test",
     "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck",
-    "format": "prettier --write \"{apps,packages}/**/*.{ts,tsx,json,css}\"",
+    "typecheck": "pnpm build:packages && pnpm -r typecheck",
+    "format": "prettier --write \"{apps,packages,game}/**/*.{ts,tsx,json,css}\"",
+    "db:start": "node scripts/local-db.mjs start",
+    "db:stop": "node scripts/local-db.mjs stop",
     "db:generate": "pnpm --filter @last-lesson/backend prisma:generate",
-    "db:migrate": "pnpm --filter @last-lesson/backend prisma:migrate",
+    "db:migrate": "pnpm --filter @last-lesson/backend prisma:deploy",
     "db:seed": "pnpm --filter @last-lesson/backend prisma:seed",
     "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "vercel:build": "node scripts/vercel-build.mjs",
+    "db:demo": "node scripts/demo-activity.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",
-    "argon2": "^0.41.1"
+    "argon2": "^0.41.1",
+    "@last-lesson/validation": "workspace:*"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-react-hooks": "^5.1.0",
     "prettier": "^3.4.2",
     "prisma": "^6.5.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   },
   "engines": {

@@ -1,57 +1,31 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { z } from 'zod';
+import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Role } from '@last-lesson/shared-types';
-import { JwtAuthGuard, OrgAccessGuard, RolesGuard } from '../common/guards';
-import { CurrentUser, Roles } from '../common/decorators';
+import { joinCenterSchema } from '@last-lesson/validation';
+import { Auth } from '../common/guards';
+import { CurrentUser } from '../common/decorators';
+import { RateLimit, RateLimitGuard } from '../common/rate-limit';
 import { zodPipe } from '../common/zod-validation.pipe';
+import type { Actor } from '../common/actor';
 import { MembershipsService } from './memberships.service';
 
-const joinSchema = z.object({ code: z.string().trim().min(4).max(64) });
-const emailSchema = z.object({ email: z.string().email().toLowerCase() });
-
+/** Student-facing membership actions. Centers manage students through /center/students. */
 @ApiTags('memberships')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard, OrgAccessGuard)
+@Auth(Role.GAMER)
+@UseGuards(RateLimitGuard)
 @Controller('memberships')
 export class MembershipsController {
   constructor(private readonly service: MembershipsService) {}
 
   @Post('join')
-  @Roles(Role.GAMER)
-  join(@Body(zodPipe(joinSchema)) body: any, @CurrentUser() user: any) {
+  @HttpCode(200)
+  @RateLimit('join', 10, 600)
+  join(@Body(zodPipe(joinCenterSchema)) body: { code: string }, @CurrentUser() user: Actor) {
     return this.service.join(body.code, user.id);
   }
 
   @Get('me')
-  @Roles(Role.GAMER, Role.CENTER_ADMIN, Role.SUPER_ADMIN)
-  myOrganizations(@CurrentUser() user: any) {
+  mine(@CurrentUser() user: Actor) {
     return this.service.myOrganizations(user.id);
-  }
-
-  @Get('organization/:organizationId/students')
-  @Roles(Role.SUPER_ADMIN, Role.CENTER_ADMIN)
-  listStudents(@Param('organizationId') organizationId: string, @CurrentUser() user: any) {
-    return this.service.listStudents(organizationId, user);
-  }
-
-  @Post('organization/:organizationId/students')
-  @Roles(Role.SUPER_ADMIN, Role.CENTER_ADMIN)
-  addStudent(
-    @Param('organizationId') organizationId: string,
-    @Body(zodPipe(emailSchema)) body: any,
-    @CurrentUser() user: any,
-  ) {
-    return this.service.addStudent(organizationId, body.email, user);
-  }
-
-  @Delete('organization/:organizationId/students/:userId')
-  @Roles(Role.SUPER_ADMIN, Role.CENTER_ADMIN)
-  removeStudent(
-    @Param('organizationId') organizationId: string,
-    @Param('userId') userId: string,
-    @CurrentUser() user: any,
-  ) {
-    return this.service.removeStudent(organizationId, userId, user);
   }
 }

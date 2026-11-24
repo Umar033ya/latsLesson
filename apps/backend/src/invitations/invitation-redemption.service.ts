@@ -1,6 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma.service';
-import { normalizeCode, sha256 } from '../common/crypto.util';
+import { ApiException } from '../common/errors';
+import { hashCode } from '../common/crypto.util';
 
 @Injectable()
 export class InvitationRedemptionService {
@@ -8,45 +10,21 @@ export class InvitationRedemptionService {
 
   async validateCode(rawCode: string) {
     const code = await this.prisma.invitationCode.findUnique({
-      where: { codeHash: sha256(normalizeCode(rawCode)) },
-      include: { organization: { select: { id: true, status: true, name: true } } },
+      where: { codeHash: hashCode(rawCode) },
+      include: { student: true, group: { select: { id: true, name: true } } },
     });
-    if (!code) throw new BadRequestException('Invalid invitation code');
-    if (!code.isActive || code.revokedAt) throw new BadRequestException('This invitation code has been revoked');
-    if (code.expiresAt < new Date()) throw new BadRequestException('This invitation code has expired');
-    if (code.usesCount >= code.maxUses) throw new BadRequestException('This invitation code has reached its usage limit');
-    if (code.organization.status !== 'ACTIVE') throw new BadRequestException('This organization is suspended');
+    if (!code) throw new ApiException('CODE_INVALID', 'We do not recognise this code. Check it and try again.', 400);
+    if (!code.isActive || code.revokedAt) throw new ApiException('CODE_REVOKED', 'This code was turned off. Ask your teacher for a new one.', 400);
+    if (code.expiresAt < new Date()) throw new ApiException('CODE_EXPIRED', 'This code has expired. Ask your teacher for a new one.', 400);
+    if (code.kind === 'GROUP' && code.usesCount >= code.maxUses) throw new ApiException('CODE_USED_UP', 'This code has been used the maximum number of times.', 400);
     return code;
   }
 
-  /**
-   * Atomically increments the usage counter and creates the membership inside one transaction.
-   * The conditional UPDATE acts as a row lock and prevents over-redeeming under concurrency.
-   */
-  async redeem(input: { code: string; userId: string; organizationId: string }): Promise<string> {
-    return this.prisma.$transaction(async (tx) => {
-      const rows = await tx.$queryRaw<Array<{ id: string; organizationId: string }>>`
-        UPDATE "InvitationCode"
-        SET "usesCount" = "usesCount" + 1
-        WHERE "codeHash" = ${sha256(normalizeCode(input.code))}
-          AND "isActive" = true
-          AND "revokedAt" IS NULL
-          AND "expiresAt" > NOW()
-          AND "usesCount" < "maxUses"
-          AND "organizationId" = ${input.organizationId}::uuid
-        RETURNING id, "organizationId"
-      `;
-      if (rows.length === 0) {
-        throw new BadRequestException('Invitation code is no longer valid');
-      }
-      await tx.membership.upsert({
-        where: {
-          userId_organizationId: { userId: input.userId, organizationId: rows[0].organizationId },
-        },
-        create: { userId: input.userId, organizationId: rows[0].organizationId },
-        update: {},
-      });
-      return rows[0].organizationId;
-    });
+  /** The conditional UPDATE acts as a row lock and prevents over-redeeming under concurrency. */
+  async consume(tx: Prisma.TransactionClient, codeId: string): Promise<void> {
+    const rows = await tx.$executeRaw`
+      UPDATE "InvitationCode" SET "usesCount" = "usesCount" + 1, "lastUsedAt" = NOW()
+      WHERE id = ${codeId}::uuid AND "isActive" = true AND "revokedAt" IS NULL AND "usesCount" < "maxUses"`;
+    if (rows === 0) throw new ApiException('CODE_USED_UP', 'This code has been used the maximum number of times.', 400);
   }
 }

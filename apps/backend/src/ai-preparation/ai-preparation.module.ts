@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { CommonModule } from '../common/common.module';
 import { AiPreparationController } from './ai-preparation.controller';
 import { AiPreparationService } from './ai-preparation.service';
+import { StudyGuideProvider } from './study-guide.provider';
 
-@Module({ imports: [CommonModule], controllers: [AiPreparationController], providers: [AiPreparationService] })
+@Module({ controllers: [AiPreparationController], providers: [AiPreparationService, StudyGuideProvider] })
 export class AiPreparationModule {}

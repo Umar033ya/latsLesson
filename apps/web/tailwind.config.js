@@ -1,15 +1,25 @@
 /** @type {import('tailwindcss').Config} */
+const v = (name) => `rgb(var(--${name}) / <alpha-value>)`;
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        ink: '#0b0f1a', panel: '#111827', line: '#1f2937', blood: '#ef4444', ember: '#f97316', mint: '#22c55e',
+        // Panels: values switch between the day and night themes (see styles/index.css).
+        paper: v('paper'), sheet: v('sheet'), well: v('well'), rule: v('rule'), ink: v('ink'), soft: v('soft'),
+        accent: v('accent'), 'accent-ink': v('accent-ink'), 'accent-soft': v('accent-soft'),
+        pencil: { DEFAULT: v('pencil'), dark: v('pencil-dark'), pale: v('pencil-pale') },
+        amber: { DEFAULT: v('amber'), dark: v('amber-dark'), pale: v('amber-pale') },
+        moss: { DEFAULT: v('moss'), pale: v('moss-pale') },
+        sky: { DEFAULT: v('sky'), pale: v('sky-pale') },
+        s1: v('s1'), s2: v('s2'), track: v('track'),
+        // Fixed: the sidebar and the student side look the same in both themes.
+        board: { DEFAULT: '#12302b', 2: '#1b423b', 3: '#2f6457', chalk: '#e4efe8', dim: '#9dbbaf' },
+        night: { DEFAULT: '#0a0c13', 2: '#131826', 3: '#1e2738', 4: '#2f3c51' },
+        bone: '#ece3c8', lamp: '#e0a848', fog: '#b4c3cc',
       },
-      fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'], mono: ['ui-monospace', 'monospace'] },
-      boxShadow: { glow: '0 0 30px rgba(239,68,68,0.25)' },
-      keyframes: { flicker: { '0%,100%': { opacity: '1' }, '48%': { opacity: '.86' }, '50%': { opacity: '.55' }, '52%': { opacity: '.9' } } },
-      animation: { flicker: 'flicker 4s infinite' },
+      fontFamily: { sans: ['Golos', 'system-ui', 'sans-serif'], dot: ['Dot', 'monospace'], jac: ['Jac', 'serif'] },
+      boxShadow: { sheet: '0 1px 0 rgb(var(--ink) / 0.04), 0 8px 24px -16px rgb(var(--ink) / 0.25)' },
     },
   },
   plugins: [],

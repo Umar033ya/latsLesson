@@ -1,1 +1,28 @@
-{"name":"@last-lesson/game","private":true,"version":"0.1.0","type":"module","scripts":{"dev":"vite --host 0.0.0.0","build":"tsc -b && vite build","typecheck":"tsc --noEmit"},"dependencies":{"phaser":"^3.90.0"},"devDependencies":{"@types/node":"^22.10.0","typescript":"^5.7.3","vite":"^6.0.7"}}
+{
+  "name": "@last-lesson/game",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@last-lesson/scenario": "workspace:*",
+    "@last-lesson/validation": "workspace:*",
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "autoprefixer": "^10.7.0",
+    "postcss": "^8.5.33",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  }
+}

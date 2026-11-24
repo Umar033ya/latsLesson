@@ -1,9 +1,15 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import { PrismaService } from './prisma.service';
 
+@ApiTags('health')
 @Controller('health')
 export class HealthController {
+  constructor(private readonly prisma: PrismaService) {}
+
   @Get()
-  check() {
-    return { status: 'ok', service: 'last-lesson-backend', time: new Date().toISOString() };
+  async check() {
+    await this.prisma.$queryRaw`SELECT 1`;
+    return { status: 'ok', time: new Date().toISOString() };
   }
 }

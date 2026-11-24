@@ -1,13 +1,12 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  rootDir: '.',
-  testMatch: ['**/*.spec.ts', '**/*.e2e-spec.ts'],
+  testMatch: ['<rootDir>/test/**/*.spec.ts'],
+  setupFiles: ['<rootDir>/test/env.js'],
+  globalSetup: '<rootDir>/test/global-setup.js',
+  testTimeout: 60000,
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-    '^@last-lesson/constants$': '<rootDir>/../../packages/constants/src',
-    '^@last-lesson/shared-types$': '<rootDir>/../../packages/shared-types/src',
-    '^@last-lesson/validation$': '<rootDir>/../../packages/validation/src',
+    '^@last-lesson/(.*)$': '<rootDir>/../../packages/$1/src',
   },
-  transform: { '^.+\.ts$': ['ts-jest', { tsconfig: { experimentalDecorators: true, emitDecoratorMetadata: true, esModuleInterop: true } }] },
+  transform: { '^.+\\.ts$': ['ts-jest', { isolatedModules: true, tsconfig: { target: 'ES2022', module: 'commonjs', experimentalDecorators: true, emitDecoratorMetadata: true, esModuleInterop: true } }] },
 };

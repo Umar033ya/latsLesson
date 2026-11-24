@@ -1,14 +1,13 @@
+# Web, game and API behind one origin: http://localhost:8080 (game at /play/).
+# Secrets come from .env; see .env.example.
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: last-lesson-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: lastlesson
-      POSTGRES_PASSWORD: lastlesson
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: lastlesson
-    ports:
-      - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -17,31 +16,24 @@ services:
       timeout: 5s
       retries: 10
   backend:
-    build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
-    container_name: last-lesson-backend
+    build: { context: ., dockerfile: apps/backend/Dockerfile }
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
+      postgres: { condition: service_healthy }
     environment:
-      DATABASE_URL: postgresql://lastlesson:lastlesson@postgres:5432/lastlesson?schema=public
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-me}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-me}
-      PORT: 3000
-      WEB_ORIGIN: http://localhost:5173
-    ports:
-      - '3000:3000'
+      DATABASE_URL: postgresql://lastlesson:${POSTGRES_PASSWORD}@postgres:5432/lastlesson?schema=public
+      DATABASE_URL_UNPOOLED: postgresql://lastlesson:${POSTGRES_PASSWORD}@postgres:5432/lastlesson?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET}
+      GAME_TOKEN_SECRET: ${GAME_TOKEN_SECRET:?set GAME_TOKEN_SECRET}
+      CODE_PEPPER: ${CODE_PEPPER:?set CODE_PEPPER}
+      WEB_ORIGIN: ${PUBLIC_URL:-http://localhost:8080}
+      GAME_URL: ${PUBLIC_URL:-http://localhost:8080}/play/
+      TRUST_PROXY: '1'
+      SWAGGER_ENABLED: 'false'
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    container_name: last-lesson-web
+    build: { context: ., dockerfile: apps/web/Dockerfile }
     restart: unless-stopped
-    depends_on:
-      - backend
-    ports:
-      - '5173:80'
+    depends_on: [backend]
+    ports: ['8080:80']
 volumes:
   pgdata:
