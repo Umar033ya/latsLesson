@@ -1,0 +1,1 @@
+{"name":"@last-lesson/game","private":true,"version":"0.1.0","type":"module","scripts":{"dev":"vite --host 0.0.0.0","build":"tsc -b && vite build","typecheck":"tsc --noEmit"},"dependencies":{"phaser":"^3.90.0"},"devDependencies":{"@types/node":"^22.10.0","typescript":"^5.7.3","vite":"^6.0.7"}}
