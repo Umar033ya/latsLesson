@@ -1,6 +1,6 @@
 /**
  * Idempotent seed: plans, subjects, the official question bank, learning materials, an official
- * campaign, and two demo centers (two, so tenant isolation can be seen).
+ * campaign, and two sample centers (two, so tenant isolation can be seen).
  */
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -182,8 +182,8 @@ const RAW_QUESTIONS: RawQuestion[] = [
   },
 ];
 
-/** Re-creating a known demo code is allowed only outside production. */
-async function demoCode(code: string, data: Omit<Prisma.InvitationCodeUncheckedCreateInput, 'codeHash' | 'hint' | 'expiresAt'>) {
+/** Re-creating a known sample code is allowed only outside production. */
+async function sampleCode(code: string, data: Omit<Prisma.InvitationCodeUncheckedCreateInput, 'codeHash' | 'hint' | 'expiresAt'>) {
   const expiresAt = new Date(Date.now() + 365 * 86_400_000);
   await prisma.invitationCode.upsert({
     where: { codeHash: codeHash(code) },
@@ -276,10 +276,10 @@ async function main() {
       create: { slug, name, city, planId: planIds.get(plan), subscriptionEndsAt: new Date(Date.now() + 365 * 86_400_000), settings: centerSettingsSchema.parse(settings) as unknown as Prisma.InputJsonValue },
       update: { status: 'ACTIVE' },
     });
-  const demo = await center('demo-academy', 'Demo Academy', 'Samarkand', 'center', {
-    branding: { displayName: 'Demo Academy', accent: '#d9a441', theme: 'MIDNIGHT' },
+  const academy = await center('zarafshon', 'Zarafshon Academy', 'Samarkand', 'center', {
+    branding: { displayName: 'Zarafshon Academy', accent: '#d9a441', theme: 'MIDNIGHT' },
     content: {
-      openingLine: 'Demo Academy evening class. If you can hear this, look for the torch.',
+      openingLine: 'Zarafshon Academy evening class. If you can hear this, look for the torch.',
       announcement: 'Olympiad registration closes on Friday. See the notice board by Room 9-B.',
       closingLine: 'Well done. Bring this result to your next lesson.',
       notes: [{ title: 'Reminder from the biology teacher', body: 'A pairs with T. G pairs with C. Write it on your hand if you must.' }],
@@ -288,7 +288,7 @@ async function main() {
   const other = await center('riverside', 'Riverside Learning Center', 'Tashkent', 'trial', {});
 
   for (const [email, first, last, org] of [
-    ['admin@lastlesson.dev', 'Ada', 'Karimova', demo.id],
+    ['admin@lastlesson.dev', 'Ada', 'Karimova', academy.id],
     ['riverside@lastlesson.dev', 'Timur', 'Saidov', other.id],
   ] as const) {
     const admin = await user(email, first, last, 'CENTER_ADMIN');
@@ -296,11 +296,11 @@ async function main() {
   }
 
   const teacher = await user('teacher@lastlesson.dev', 'Nodira', 'Yusupova', 'TEACHER');
-  await prisma.user.update({ where: { id: teacher.id }, data: { homeOrganizationId: demo.id } });
+  await prisma.user.update({ where: { id: teacher.id }, data: { homeOrganizationId: academy.id } });
 
   const group = (organizationId: string, name: string) => prisma.group.upsert({ where: { organizationId_name: { organizationId, name } }, create: { organizationId, name }, update: {} });
-  const g9a = await group(demo.id, '9-A evening');
-  const g9b = await group(demo.id, '9-B weekend');
+  const g9a = await group(academy.id, '9-A evening');
+  const g9b = await group(academy.id, '9-B weekend');
   await group(other.id, 'Beginners');
 
   const student = async (organizationId: string, groupId: string, firstName: string, lastName: string) => {
@@ -308,12 +308,12 @@ async function main() {
     if (existing) return existing;
     return prisma.user.create({ data: { firstName, lastName, role: 'GAMER', homeOrganizationId: organizationId, memberships: { create: { organizationId, groupId } } } });
   };
-  const sam = await student(demo.id, g9b.id, 'Sam', 'Student');
-  for (const [f, l, g] of [['Malika', 'Yusupova', g9a.id], ['Jasur', 'Rahimov', g9a.id], ['Nilufar', 'Aliyeva', g9b.id], ['Bekzod', 'Tursunov', g9b.id]] as const) await student(demo.id, g, f, l);
+  const sam = await student(academy.id, g9b.id, 'Sam', 'Student');
+  for (const [f, l, g] of [['Malika', 'Yusupova', g9a.id], ['Jasur', 'Rahimov', g9a.id], ['Nilufar', 'Aliyeva', g9b.id], ['Bekzod', 'Tursunov', g9b.id]] as const) await student(academy.id, g, f, l);
 
   if (process.env.NODE_ENV !== 'production') {
-    await demoCode('LL-DEMO-2026', { organizationId: demo.id, groupId: g9b.id, createdById: superAdmin.id, maxUses: 1000, kind: 'GROUP', label: 'Demo group code' });
-    await demoCode('LL-PLAY-2026', { organizationId: demo.id, studentId: sam.id, createdById: superAdmin.id, maxUses: 10000, kind: 'PERSONAL' });
+    await sampleCode('LL-CLASS-2026', { organizationId: academy.id, groupId: g9b.id, createdById: superAdmin.id, maxUses: 1000, kind: 'GROUP', label: '9-B weekend' });
+    await sampleCode('LL-PLAY-2026', { organizationId: academy.id, studentId: sam.id, createdById: superAdmin.id, maxUses: 10000, kind: 'PERSONAL' });
   }
 
   console.log(`Seeded ${all.length} questions, ${MATERIALS.length} materials, 2 centers.`);
@@ -321,7 +321,7 @@ async function main() {
     console.log(`Super admin:   super@lastlesson.dev / ${password}`);
     console.log(`Teacher:       teacher@lastlesson.dev / ${password}`);
     console.log(`Center admin:  admin@lastlesson.dev / ${password}  (second center: riverside@lastlesson.dev)`);
-    console.log('Student codes: LL-PLAY-2026 (personal), LL-DEMO-2026 (group)');
+    console.log('Student codes: LL-PLAY-2026 (personal), LL-CLASS-2026 (group)');
   }
 }
 

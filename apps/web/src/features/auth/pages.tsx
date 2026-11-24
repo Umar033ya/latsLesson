@@ -13,15 +13,15 @@ import { useEnter } from './enter';
 function Frame({ title, lead, children, wide }: { title: string; lead: string; children: ReactNode; wide?: boolean }) {
   return (
     <div className="night relative flex flex-col">
-      <div className="fixed inset-0 bg-cover bg-[60%_70%] opacity-70 [image-rendering:pixelated]" style={{ backgroundImage: 'url(/art/title.png)' }} aria-hidden="true" />
-      <div className="fixed inset-0 bg-[radial-gradient(900px_700px_at_50%_45%,#0a0c13e6,#0a0c1399)]" aria-hidden="true" />
+      <div className="fixed inset-0 bg-cover bg-[60%_70%] opacity-100 [image-rendering:pixelated]" style={{ backgroundImage: 'url(/art/title.png)' }} aria-hidden="true" />
+      <div className="fixed inset-0 bg-[radial-gradient(760px_620px_at_50%_48%,#0a0c13d9,#0a0c1340)]" aria-hidden="true" />
       <header className="relative mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4"><Link to="/"><Wordmark className="text-[34px] text-bone" /></Link><LanguageSwitch dark /></header>
       <main className="relative flex flex-1 items-center justify-center px-4 pb-14 pt-4">
-        <div className={clsx('w-full rounded-3xl border border-rule bg-sheet p-6 text-ink shadow-[0_30px_100px_-20px_#000] sm:p-9', wide ? 'max-w-xl' : 'max-w-md')}>
+        <div className={clsx('w-full rounded-3xl border border-rule bg-sheet p-6 text-ink shadow-[0_30px_100px_-20px_#000] sm:p-9', wide ? 'max-w-xl' : 'max-w-lg')}>
           <h1 className="text-[28px] font-bold leading-tight tracking-[-0.01em]">{title}</h1>
           <p className="mb-6 mt-1.5 text-soft">{lead}</p>
           {children}
-          <div className="mt-6 grid gap-2 border-t border-rule pt-5 sm:grid-cols-2"><Link to="/" className="btn-line"><KeyRound size={16} />{tr('I have an access code')}</Link><Link to="/join" className="btn-line"><DoorOpen size={16} />{tr('Join a room')}</Link></div>
+          <div className="mt-6 grid gap-2 border-t border-rule pt-5 sm:grid-cols-2"><Link to="/" className="btn-line"><KeyRound size={16} />{tr('Enter with a code')}</Link><Link to="/join" className="btn-line"><DoorOpen size={16} />{tr('Join a room')}</Link></div>
         </div>
       </main>
     </div>

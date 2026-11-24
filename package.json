@@ -21,7 +21,7 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "vercel:build": "node scripts/vercel-build.mjs",
-    "db:demo": "node scripts/demo-activity.mjs"
+    "db:sample": "node scripts/sample-activity.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",
@@ -42,5 +42,14 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@12.5.1"
+  "pnpm": {
+    "overrides": {
+      "multer": "^2.5.0",
+      "lodash": "^4.18.1",
+      "js-yaml@4": "^4.3.2",
+      "body-parser@1": "^1.20.9",
+      "qs": "^6.16.1",
+      "effect": "^3.22.1"
+    }
+  }
 }

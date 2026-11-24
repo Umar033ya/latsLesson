@@ -60,6 +60,6 @@ Standings: whoever reached the door first, fastest first; the others by progress
 
 - The campaign builder configures rooms, questions, rules and texts. It is not a visual level editor.
 - One map. New maps need a new `world/map.ts` and gate list.
-- The offline demo night is not recorded. The game is not offline-capable for real sessions: answers need the server.
+- A game without signing in is not recorded. The game is not offline-capable for real sessions: answers need the server.
 - Questions written by a center are shown in the language they were written in unless the center adds translations.
 - There are no recorded voices. The game reads aloud with the voices installed in the browser; Uzbek is often missing.

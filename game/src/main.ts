@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { Audio } from './audio';
 import { onLink } from './platform/http';
-import { DemoSession } from './platform/demo';
+import { GuestSession } from './platform/guest';
 import { RemoteSession } from './platform/remote';
 import type { GameSession, SessionError } from './platform/session';
 import { Boot } from './scenes/Boot';
@@ -77,7 +77,7 @@ async function main() {
     addEventListener('keydown', unlockMusic, { once: true });
     const choice = await titleScreen({ session, error, onSound: () => audio.play('slam', 0.4) });
     error = undefined;
-    const active: GameSession = choice === 'guest' || !session ? new DemoSession(params.get('name') ?? 'Student') : session;
+    const active: GameSession = choice === 'guest' || !session ? new GuestSession(params.get('name') ?? 'Student') : session;
     document.documentElement.style.setProperty('--accent', active.data.branding.accent);
     const result = await new Promise<SchoolResult>((resolve) => {
       game.scene.start('School', { session: active, audio, overlay, done: resolve });

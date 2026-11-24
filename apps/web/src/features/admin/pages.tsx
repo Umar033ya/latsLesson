@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Building2, Gamepad2, HelpCircle, Shield, Target, Users } from 'lucide-react';
+import { Building2, Check as Check2, CircleAlert, KeyRound, Lock, Gamepad2, HelpCircle, Shield, Target, Users } from 'lucide-react';
 import { FEATURES, TENSIONS, THEMES } from '@last-lesson/scenario';
 import { LanguagePicker, ThemeSwitch } from '../../components/Preferences';
 import { GoogleLink } from '../../components/GoogleLink';
@@ -147,7 +147,21 @@ export function Plans() {
   const remove = useAction((id: string) => del(`/admin/plans/${id}`), { ok: 'Plan removed', keys: ['plans'] });
   return (
     <Page title={tr('Plans')} note={tr('Limits and features a center receives.')} action={<button className="btn-main" onClick={() => setEdit({ key: '', name: '', description: '', maxStudents: 100, maxGroups: 10, maxCampaigns: 10, maxQuestions: 500, features: {}, isActive: true, sortOrder: 10 })}>{tr('New plan')}</button>}>
-      <Load q={q}>{(d) => <div className="sheet overflow-x-auto"><table className="reg min-w-[680px]"><thead><tr><th>{tr('Plan')}</th><th>{tr('Students')}</th><th>{tr('Groups')}</th><th>{tr('Campaigns')}</th><th>{tr('Questions')}</th><th>{tr('Centers')}</th><th /></tr></thead><tbody>{d.map((p) => <tr key={p.id}><td><b>{p.name}</b><span className="block text-[13px] text-soft">{p.description && tr(p.description)}</span></td><td>{p.maxStudents}</td><td>{p.maxGroups}</td><td>{p.maxCampaigns}</td><td>{p.maxQuestions}</td><td>{p.centers}</td><td className="whitespace-nowrap text-right"><button className="btn-quiet" onClick={() => setEdit(p)}>{tr('Edit')}</button>{!p.centers && <button className="btn-quiet hover:!text-pencil" onClick={() => confirmed(tr('Remove plan "{0}"?', { 0: p.name })) && remove.mutate(p.id)}>{tr('Remove')}</button>}</td></tr>)}</tbody></table></div>}</Load>
+      <Load q={q}>
+        {(d) => (
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {d.map((p) => (
+              <article key={p.id} className="sheet flex flex-col p-6">
+                <div className="flex items-start justify-between gap-3"><h2 className="text-xl font-bold">{p.name}</h2><Tag tone={p.centers ? 'green' : 'grey'}>{tr('Centers')}: {p.centers}</Tag></div>
+                <p className="mt-1 min-h-[2.5em] text-soft">{p.description && tr(p.description)}</p>
+                <dl className="mt-4 grid grid-cols-2 gap-3">{([[tr('Students'), p.maxStudents], [tr('Groups'), p.maxGroups], [tr('Campaigns'), p.maxCampaigns], [tr('Questions'), p.maxQuestions]] as const).map(([label, value]) => <div key={label} className="rounded-xl bg-well p-3"><dt className="text-[13px] text-soft">{label}</dt><dd className="text-xl font-bold tabular-nums">{value}</dd></div>)}</dl>
+                <ul className="mt-4 flex-1 space-y-1.5 text-sm">{FEATURES.map((k) => <li key={k} className={p.features[k] === false ? 'flex gap-2 text-soft line-through opacity-60' : 'flex gap-2'}><Check2 size={17} className={p.features[k] === false ? 'shrink-0 text-soft' : 'shrink-0 text-moss'} aria-hidden="true" />{FEATURE_LABEL[k]}</li>)}</ul>
+                <div className="mt-5 flex gap-2"><button className="btn-line flex-1" onClick={() => setEdit(p)}>{tr('Edit')}</button>{!p.centers && <button className="btn-quiet hover:!text-pencil" onClick={() => confirmed(tr('Remove plan "{0}"?', { 0: p.name })) && remove.mutate(p.id)}>{tr('Remove')}</button>}</div>
+              </article>
+            ))}
+          </div>
+        )}
+      </Load>
       <Dialog title={edit?.id ? tr('Edit plan') : tr('New plan')} open={Boolean(edit)} onClose={() => setEdit(null)}>{edit && <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate(edit); }}><div className="grid gap-3 sm:grid-cols-2"><Text label={tr('Name')} required value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value, key: edit.id ? edit.key : slugify(e.target.value) })} /><Text label={tr('Key')} required disabled={Boolean(edit.id)} value={edit.key} onChange={(e) => setEdit({ ...edit, key: e.target.value })} />{(['maxStudents', 'maxGroups', 'maxCampaigns', 'maxQuestions'] as const).map((k) => <Text key={k} label={{ maxStudents: tr('Students'), maxGroups: tr('Groups'), maxCampaigns: tr('Campaigns'), maxQuestions: tr('Own questions') }[k]} type="number" min={0} value={edit[k]} onChange={(e) => setEdit({ ...edit, [k]: e.target.value })} />)}</div><Text label={tr('Description')} value={edit.description ?? ''} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /><fieldset className="space-y-1"><legend className="lbl">{tr('Features')}</legend>{FEATURES.map((k) => <Check key={k} label={FEATURE_LABEL[k]} checked={edit.features[k] !== false} onChange={(v) => setEdit({ ...edit, features: { ...edit.features, [k]: v } })} />)}</fieldset><button className="btn-main" disabled={save.isPending}>{tr('Save plan')}</button></form>}</Dialog>
     </Page>
   );
@@ -193,7 +207,7 @@ export function Security() {
   const q = useQuery({ queryKey: ['security'], queryFn: () => get<any>('/admin/security') });
   return (
     <Page title={tr('Security')} note={tr('Failed sign-ins, rejected codes, locked accounts and unusual results.')}>
-      <Load q={q}>{(d) => <><Figures items={[{ label: tr('Failed sign-ins, 7 days'), value: d.last7Days.LOGIN_FAILED ?? 0 }, { label: tr('Rejected codes'), value: d.last7Days.CODE_REJECTED ?? 0 }, { label: tr('Rate limits reached'), value: d.last7Days.RATE_LIMIT_REACHED ?? 0 }, { label: tr('Locked accounts'), value: d.lockedAccounts.length }]} /><div className="grid gap-5 lg:grid-cols-[2fr_3fr]"><Section title={tr('Flagged sessions')}>{d.flaggedSessions.length ? <ul className="divide-y divide-rule">{d.flaggedSessions.map((s: any) => <li key={s.id} className="py-2">{s.organization?.name}<span className="block text-[13px] text-soft">{s.flags.map((f: string) => FLAGS[f] ?? f).join('. ')}, {when(s.startedAt)}</span></li>)}</ul> : <p className="text-soft">{tr('None.')}</p>}</Section><Section title={tr('Events')} className="overflow-x-auto">{d.feed.length ? <table className="reg min-w-[480px]"><tbody>{d.feed.map((e: any) => <tr key={e.id}><td>{tr(words(e.action))}<span className="block text-[13px] text-soft">{e.actor?.email ?? e.organization?.name ?? ''}</span></td><td className="text-soft">{e.ip}</td><td className="whitespace-nowrap text-right text-soft">{when(e.createdAt)}</td></tr>)}</tbody></table> : <p className="text-soft">{tr('No security events recorded.')}</p>}</Section></div></>}</Load>
+      <Load q={q}>{(d) => <><Figures items={[{ label: tr('Failed sign-ins, 7 days'), value: d.last7Days.LOGIN_FAILED ?? 0, icon: CircleAlert, tone: d.last7Days.LOGIN_FAILED ? 'warn' : 'plain' }, { label: tr('Rejected codes'), value: d.last7Days.CODE_REJECTED ?? 0, icon: KeyRound }, { label: tr('Rate limits reached'), value: d.last7Days.RATE_LIMIT_REACHED ?? 0, icon: Shield }, { label: tr('Locked accounts'), value: d.lockedAccounts.length, icon: Lock }]} /><div className="grid gap-5 lg:grid-cols-[2fr_3fr]"><Section title={tr('Flagged sessions')}>{d.flaggedSessions.length ? <ul className="divide-y divide-rule">{d.flaggedSessions.map((s: any) => <li key={s.id} className="py-2">{s.organization?.name}<span className="block text-[13px] text-soft">{s.flags.map((f: string) => FLAGS[f] ?? f).join('. ')}, {when(s.startedAt)}</span></li>)}</ul> : <p className="text-soft">{tr('None.')}</p>}</Section><Section title={tr('Events')} className="overflow-x-auto">{d.feed.length ? <table className="reg min-w-[480px]"><tbody>{d.feed.map((e: any) => <tr key={e.id}><td>{tr(words(e.action))}<span className="block text-[13px] text-soft">{e.actor?.email ?? e.organization?.name ?? ''}</span></td><td className="text-soft">{e.ip}</td><td className="whitespace-nowrap text-right text-soft">{when(e.createdAt)}</td></tr>)}</tbody></table> : <p className="text-soft">{tr('No security events recorded.')}</p>}</Section></div></>}</Load>
     </Page>
   );
 }

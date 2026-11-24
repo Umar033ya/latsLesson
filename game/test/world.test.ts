@@ -5,7 +5,7 @@ import { NOTES, PAGES } from '../src/story';
 import { freshState, parseState } from '../src/world/state';
 import ru from '../src/i18n/ru';
 import uz from '../src/i18n/uz';
-import { DemoSession } from '../src/platform/demo';
+import { GuestSession } from '../src/platform/guest';
 
 const open = (g: Grid) => DOORS.forEach((d) => g.openDoor(d.id));
 
@@ -161,7 +161,7 @@ describe('languages', () => {
   });
 });
 
-describe('state and demo session', () => {
+describe('state and guest session', () => {
   it('repairs damaged checkpoints', () => {
     const s = parseState({ x: 'NaN', y: 1e9, items: ['torch', 4], battery: -5, lives: 99 }, 3);
     expect(s).toMatchObject({ x: START.x, y: 4000, items: ['torch'], battery: 0, lives: 3 });
@@ -169,7 +169,7 @@ describe('state and demo session', () => {
   });
 
   it('never ships answers to the scene and grades like the server', async () => {
-    const d = new DemoSession('Aziza');
+    const d = new GuestSession('Aziza');
     expect(JSON.stringify(d.data.questions)).not.toMatch(/"correct"|explanation/);
     const q = d.data.questions.find((x) => x.gateId === 'typewriter')!;
     expect(await d.answer(q, 'has')).toMatchObject({ correct: false, resolved: false, attemptsLeft: 1 });

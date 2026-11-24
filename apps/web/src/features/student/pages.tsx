@@ -84,12 +84,12 @@ export function Home() {
           {launch.error && <p className="mt-4 text-[#f09a86]" role="alert">{errorText(launch.error)}</p>}
           <h2 className="mb-4 mt-9 text-xl font-bold">{tr('Campaigns')}</h2>
           <div className="grid gap-5 lg:grid-cols-2">
-            {d.campaigns.map((c: any) => {
+            {d.campaigns.map((c: any, i: number) => {
               const theme = THEMES.find((t) => t.id === c.theme) ?? THEMES[0];
               return (
                 <article key={c.id} className="npanel flex flex-col overflow-hidden transition hover:border-lamp/40">
                   <div className="relative h-40" aria-hidden="true">
-                    <div className="absolute inset-0 bg-cover bg-center [image-rendering:pixelated]" style={{ backgroundImage: `url(/art/${c.best?.outcome === 'DISMISSED' ? 'dawn' : 'title'}.png)` }} />
+                    <div className="absolute inset-0 bg-cover bg-center [image-rendering:pixelated]" style={{ backgroundImage: `url(/art/${c.best?.outcome === 'DISMISSED' ? 'dawn' : 'title'}.png)`, filter: `hue-rotate(${(i % 4) * 38}deg)` }} />
                     <div className="absolute inset-0 mix-blend-color" style={{ background: theme.accent, opacity: theme.id === 'MIDNIGHT' ? 0 : 0.4 }} />
                   </div>
                   <div className="flex flex-1 flex-col p-5 sm:p-6">

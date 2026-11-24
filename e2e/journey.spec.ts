@@ -231,7 +231,7 @@ test.describe.serial('the whole product', () => {
     await expect(page.getByText('It was true.').or(page.getByText('0 = 2 × 0.')).first()).toBeVisible();
     await shot(page, 'student-review');
     await page.goto('/student/progress');
-    await expect(page.getByText('Finished: 1 of 1.')).toBeVisible();
+    await expect(page.getByText('Finished nights')).toBeVisible();
     await shot(page, 'student-progress');
     await page.getByRole('button', { name: 'Sign out' }).click();
     await page.getByLabel('Access code').fill(personalCode);

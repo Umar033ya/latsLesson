@@ -32,7 +32,7 @@ export function CodePage() {
             ) : (
               <>
                 <Link to="/login" className="nbtn-line !py-2"><LogIn size={16} />{tr('Sign in')}</Link>
-                <Link to="/register" className="nbtn !py-2">{tr('Create account')}</Link>
+                <Link to="/register" className="nbtn !hidden !py-2 sm:!inline-flex">{tr('Create account')}</Link>
               </>
             )}
           </nav>
@@ -50,7 +50,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0 bg-cover bg-[60%_70%] [image-rendering:pixelated]" style={{ backgroundImage: 'url(/art/title.png)' }} aria-hidden="true" />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,#0a0c13_6%,#0a0c13d9_42%,#0a0c1366_100%),linear-gradient(0deg,#0a0c13_0%,transparent_38%)]" aria-hidden="true" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,#0a0c13_4%,#0a0c13b3_38%,#0a0c1326_100%),linear-gradient(0deg,#0a0c13_0%,transparent_38%)]" aria-hidden="true" />
       <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 py-14 lg:min-h-[640px] lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:py-20">
         <div>
           <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-lamp/30 bg-lamp/10 px-3.5 py-1.5 text-sm text-lamp"><Sparkles size={15} aria-hidden="true" />{tr('A game for schools and learning centers')}</p>

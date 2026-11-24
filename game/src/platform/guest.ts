@@ -3,7 +3,7 @@ import { getLanguage, tr } from '../i18n';
 import { gradeAnswer, presentOptions } from '@last-lesson/validation/question';
 import type { GameSession } from './session';
 
-interface DemoQuestion {
+interface GuestQuestion {
   gateId: string;
   type: QuestionKind;
   subject: string;
@@ -18,7 +18,7 @@ const opt = (...list: string[]) => list.map((text, i) => ({ id: `o${i}`, text })
 const DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 /** A fixed set for playing without an account. Real sessions are always graded by the server. */
-const QUESTIONS: DemoQuestion[] = [
+const QUESTIONS: GuestQuestion[] = [
   { gateId: 'blackboard', type: 'MULTIPLE_CHOICE', subject: 'Mathematics', topic: 'Algebra', prompt: 'Solve for x: 3x + 6 = 21', options: opt('3', '5', '7', '9'), correct: 'o1', explanation: 'Subtract 6, then divide by 3: x = 5.', hint: 'Undo the + 6 first.' },
   { gateId: 'catalogue', type: 'ORDERING', subject: 'Biology', topic: 'Cells', prompt: 'Order the levels of organisation, smallest first.', options: { items: opt('Cell', 'Tissue', 'Organ', 'Organ system', 'Organism') }, correct: ['o0', 'o1', 'o2', 'o3', 'o4'], explanation: 'Cells form tissues, tissues form organs.', hint: 'Start with the smallest living unit.' },
   { gateId: 'specimens', type: 'MATCHING', subject: 'Biology', topic: 'Cells', prompt: 'Pair each part of the cell with its job.', options: { left: opt('Nucleus', 'Mitochondrion', 'Membrane'), right: opt('Holds the DNA', 'Releases energy', 'Controls what enters') }, correct: { o0: 'o0', o1: 'o1', o2: 'o2' }, explanation: 'Each organelle has its own role.', hint: 'Energy: the mitochondrion.' },
@@ -41,7 +41,7 @@ const HIDING: Array<[string, boolean, string]> = [
   ['Water boils at 100 °C at sea level.', true, 'At normal pressure water boils at 100 °C.'],
 ];
 QUESTIONS.push(...HIDING.map(([prompt, correct, explanation], i) => ({ gateId: `hide${i + 1}`, type: 'TRUE_FALSE' as const, subject: '', topic: '', prompt, options: {}, correct, explanation, hint: '' })));
-/** Demo text is translated by the dictionary; option ids keep grading independent of the language. */
+/** Its text is translated by the dictionary; option ids keep grading independent of the language. */
 const say = (o: unknown): unknown => (Array.isArray(o) ? o.map(say) : o && typeof o === 'object' ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, k === 'text' ? tr(String(v)) : k === 'dials' ? v : say(v)])) : o);
 const LESSONS: Record<string, [title: string, body: string, example: string]> = {
   Algebra: ['Keeping an equation balanced', 'An equation is a balance. Whatever you do to one side, do to the other. Undo what is added first, then what multiplies.', '4x − 5 = 19, so 4x = 24 and x = 6.'],
@@ -51,9 +51,7 @@ const LESSONS: Record<string, [title: string, body: string, example: string]> = 
   Grammar: ['Telling the order of events', 'The past perfect, had + participle, shows that something happened before another past event. A question starts with the question word and the auxiliary.', 'When I arrived, the lesson had started.'],
 };
 
-const SAVE_KEY = 'last-lesson-demo-save';
-
-export class DemoSession implements GameSession {
+export class GuestSession implements GameSession {
   readonly live = false;
   readonly data: PlaySession;
   private attempts = new Map<string, number>();
@@ -62,15 +60,15 @@ export class DemoSession implements GameSession {
 
   constructor(firstName = 'Student') {
     this.data = {
-      sessionId: 'demo',
+      sessionId: 'guest',
       locale: getLanguage(),
-      campaign: { id: 'demo', title: 'The Last Lesson', objectives: [] },
+      campaign: { id: 'guest', title: 'The Last Lesson', objectives: [] },
       student: { firstName, lastName: '' },
       branding: { displayName: 'School No. 47', logoUrl: null, accent: '#e0a848', theme: 'MIDNIGHT' },
       gameplay: { ...DEFAULT_GAMEPLAY },
       content: { openingLine: '', announcement: '', closingLine: '', notes: [] },
       sections: [...ALL_SECTIONS],
-      questions: QUESTIONS.map((q) => ({ id: `demo-${q.gateId}`, gateId: q.gateId, type: q.type, prompt: q.subject === 'English' ? q.prompt : tr(q.prompt), options: presentOptions(q.type, q.subject === 'English' ? q.options : say(q.options), `demo:${q.gateId}`, q.correct), difficulty: 'MEDIUM' as const, subject: tr(q.subject), topic: tr(q.topic), points: 10, hasHint: Boolean(q.hint), lesson: LESSONS[q.topic] ? { title: tr(LESSONS[q.topic][0]), body: tr(LESSONS[q.topic][1]), example: tr(LESSONS[q.topic][2]) } : null })),
+      questions: QUESTIONS.map((q) => ({ id: `guest-${q.gateId}`, gateId: q.gateId, type: q.type, prompt: q.subject === 'English' ? q.prompt : tr(q.prompt), options: presentOptions(q.type, q.subject === 'English' ? q.options : say(q.options), `guest:${q.gateId}`, q.correct), difficulty: 'MEDIUM' as const, subject: tr(q.subject), topic: tr(q.topic), points: 10, hasHint: Boolean(q.hint), lesson: LESSONS[q.topic] ? { title: tr(LESSONS[q.topic][0]), body: tr(LESSONS[q.topic][1]), example: tr(LESSONS[q.topic][2]) } : null })),
       progress: [],
       hintsUsed: 0,
       startedAt: new Date().toISOString(),
@@ -99,15 +97,14 @@ export class DemoSession implements GameSession {
   }
 
   save() {
-    /* The demo keeps nothing: refreshing starts a new night. */
-    try { localStorage.removeItem(SAVE_KEY); } catch { /* private mode */ }
+    /* Nothing is kept without signing in: refreshing starts a new night. */
   }
 
   async complete(outcome: SessionOutcome): Promise<SessionSummary> {
     const all = [...this.results.values()];
     const correct = all.filter((r) => r.correct).length;
     return {
-      sessionId: 'demo',
+      sessionId: 'guest',
       outcome,
       score: all.reduce((s, r) => s + r.points, 0),
       maxScore: (QUESTIONS.length - HIDING.length + [...this.results.keys()].filter((k) => k.startsWith('hide')).length) * 10,

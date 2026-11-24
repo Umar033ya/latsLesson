@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "npx -y pnpm@12.5.1 install --frozen-lockfile",
-  "buildCommand": "npx -y pnpm@12.5.1 run vercel",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm run vercel",
   "outputDirectory": "public",
   "functions": {
     "api/index.js": {

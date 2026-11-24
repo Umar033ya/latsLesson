@@ -22,7 +22,15 @@ One Vercel project serves everything from one origin: panels at `/`, the game at
 NODE_ENV=production SEED_PASSWORD=... DATABASE_URL=... DATABASE_URL_UNPOOLED=... CODE_PEPPER=... pnpm db:seed
 ```
 
-The production seed creates accounts and content but no demo access codes.
+The production seed creates accounts and content but no sample access codes.
+
+## Several Vercel projects instead of one
+
+`apps/web`, `game` and `apps/backend` also carry their own `vercel.json`, so projects whose Root Directory is one of these folders build too. The site then forwards `/api` and `/play` to the other two; their addresses are written in `apps/web/vercel.json` and `game/vercel.json`. One project with the repository root is simpler and shows the real address of each visitor to the rate limits.
+
+## API on Render
+
+New, Blueprint, this repository: `render.yaml` describes the service and lets Render generate the three secrets. Fill in the Neon strings, `WEB_ORIGIN` and `GAME_URL`, then put the Render address into the `/api` rewrite of `apps/web/vercel.json` and `game/vercel.json`. Migrations run when the container starts.
 
 ## Google sign-in (optional)
 

@@ -1,0 +1,26 @@
+# Render blueprint: New > Blueprint > this repository. Render generates the three secrets by itself;
+# it asks for the values marked `sync: false` (Neon connection strings and addresses).
+services:
+  - type: web
+    name: last-lesson-api
+    runtime: docker
+    dockerfilePath: ./apps/backend/Dockerfile
+    dockerContext: .
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    envVars:
+      - { key: NODE_ENV, value: production }
+      - { key: DATABASE_URL, sync: false }
+      - { key: DATABASE_URL_UNPOOLED, sync: false }
+      - { key: JWT_ACCESS_SECRET, generateValue: true }
+      - { key: GAME_TOKEN_SECRET, generateValue: true }
+      - { key: CODE_PEPPER, generateValue: true }
+      - { key: JWT_ACCESS_TTL, value: '900' }
+      - { key: JWT_REFRESH_TTL, value: '604800' }
+      - { key: WEB_ORIGIN, sync: false }
+      - { key: GAME_URL, sync: false }
+      - { key: TRUST_PROXY, value: '1' }
+      - { key: SWAGGER_ENABLED, value: 'false' }
+      - { key: AI_PROVIDER, value: local }
+      - { key: GOOGLE_CLIENT_ID, sync: false }

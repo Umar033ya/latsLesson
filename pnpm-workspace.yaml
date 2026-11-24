@@ -12,6 +12,15 @@ allowBuilds:
   esbuild: true
   prisma: true
 
+# The same list for pnpm 10, which Vercel uses.
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - argon2
+  - esbuild
+  - prisma
+
 # Patched releases of transitive dependencies (see docs/SECURITY.md).
 overrides:
   multer: ^2.5.0

@@ -92,7 +92,7 @@ const normalize = (value: unknown): string =>
 
 /**
  * Grading. Runs on the server for recorded sessions; the same function grades the bundled
- * offline demo so behaviour never differs between the two.
+ * game without signing in, so behaviour never differs between the two.
  */
 export function gradeAnswer(type: QuestionKind, correct: unknown, submitted: unknown): boolean {
   switch (type) {
