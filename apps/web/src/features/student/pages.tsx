@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { THEMES } from '@last-lesson/scenario';
 import { AnswerControl } from '../../components/QuestionFields';
 import { Review } from '../../components/Review';
+import { GoogleLink } from '../../components/GoogleLink';
 import { LanguagePicker, LanguageSwitch } from '../../components/Preferences';
 import { Wordmark } from '../../components/Shell';
 import { get, post, signOut, startSession, useAuth } from '../../lib/api';
@@ -227,6 +228,7 @@ export function MySettings() {
       <h1 className="font-dot text-3xl">{tr('Settings')}</h1>
       <p className="mt-1 text-fog">{me.firstName} {me.lastName}{me.email ? `, ${me.email}` : ''}</p>
       <section className="npanel mt-6 p-5"><h2 className="mb-1 font-dot text-xl">{tr('Language')}</h2><p className="mb-4 text-fog">{tr('The panel, the game and the official questions change together.')}</p><LanguagePicker dark /></section>
+      {me.email && <div className="mt-5 max-w-md text-ink"><GoogleLink /></div>}
       {me.email ? (
         <form className="npanel mt-5 max-w-md space-y-3 p-5" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
           <h2 className="font-dot text-xl">{tr('Password')}</h2>

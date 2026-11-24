@@ -202,7 +202,7 @@ describe('education center', () => {
   });
 
   it('validates imports row by row and enforces plan limits', async () => {
-    const good = { subject: 'Mathematics', topic: 'Algebra', type: 'TRUE_FALSE', difficulty: 'EASY', prompt: 'Imported', correctAnswer: true };
+    const good = { subject: 'Mathematics', topic: 'Algebra', type: 'TRUE_FALSE', difficulty: 'EASY', prompt: 'Imported', correctAnswer: true, hint: 'Think', explanation: 'Because imported' };
     const dry = await call('post', '/questions/import', tokens.a, { dryRun: true, questions: [good, { ...good, subject: 'Alchemy' }, { ...good, correctAnswer: 'x' }] });
     expect(dry.body).toMatchObject({ imported: 0, valid: 1 });
     expect(dry.body.errors.map((e: any) => e.row)).toEqual([2, 3]);

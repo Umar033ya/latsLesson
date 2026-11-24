@@ -22,6 +22,19 @@ function Scene({ children, wide }: { children: ReactNode; wide?: boolean }) {
   );
 }
 
+/**
+ * Coming back to the same room continues it. Another room is left first: a forgotten player
+ * would keep it open until its time is over.
+ */
+async function alreadyInside(code: string): Promise<boolean> {
+  if (!roomToken()) return false;
+  const room = await roomCall<RoomState>('GET', '/room').catch(() => null);
+  if (room && room.status !== 'FINISHED' && room.code === code.replace(/\D/g, '')) return true;
+  if (room && room.status !== 'FINISHED') await roomCall('POST', '/room/leave').catch(() => undefined);
+  forgetRoom();
+  return false;
+}
+
 /** Code and a name: nothing else is needed to play in a room. */
 export function JoinRoom() {
   const [params] = useSearchParams();
@@ -33,9 +46,9 @@ export function JoinRoom() {
   const student = me?.role === 'GAMER';
   const nickname = name ?? (student ? me.firstName.slice(0, 18) : '');
   const join = useMutation({
-    mutationFn: () => post<{ token: string }>(student ? '/room/join-as-student' : '/room/join', { code, nickname }),
+    mutationFn: async () => ((await alreadyInside(code)) ? null : post<{ token: string }>(student ? '/room/join-as-student' : '/room/join', { code, nickname })),
     onSuccess: (r) => {
-      enterRoom(r.token);
+      if (r) enterRoom(r.token);
       nav('/room');
     },
   });

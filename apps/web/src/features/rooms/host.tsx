@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Copy, DoorOpen, Flag, Play, Plus, RotateCcw, Timer, Trash2, Users } from 'lucide-react';
+import clsx from 'clsx';
 import qrcode from 'qrcode-generator';
 import type { LobbyState } from '@last-lesson/scenario';
 import { Choice, confirmed, copy, Dialog, Empty, Load, Page, Section, Status, Text, useAction } from '../../components/ui';
@@ -179,7 +180,7 @@ function Waiting({ room, onKick, onCancel }: { room: LobbyState; onKick: (id: st
         {room.standings.length ? (
           <ul className="flex flex-wrap gap-2">
             {room.standings.map((s) => (
-              <li key={s.id} className="flex items-center gap-2 rounded-full border border-rule bg-well py-1.5 pl-3 pr-1.5 font-semibold">
+              <li key={s.id} title={s.online ? undefined : tr('offline')} className={clsx('flex items-center gap-2 rounded-full border border-rule bg-well py-1.5 pl-3 pr-1.5 font-semibold', !s.online && 'opacity-50')}>
                 <Dot color={s.color} />{s.nickname}
                 <button className="rounded-full px-2 text-soft hover:text-pencil-dark" aria-label={tr('Remove {0}', { 0: s.nickname })} onClick={() => onKick(s.id, s.nickname)}>×</button>
               </li>

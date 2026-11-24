@@ -75,7 +75,7 @@ export function CodePage() {
             {!profile ? (
               <>
                 <label htmlFor="code" className="mb-2 block text-fog">{tr('Access code from your education center, or six digits of a room')}</label>
-                <input id="code" className="nfield font-dot text-2xl uppercase tracking-wider" placeholder="LL-XXXX-XXXX / 000 000" autoComplete="off" autoFocus spellCheck={false} maxLength={20} value={code} onChange={(e) => setCode(e.target.value)} required minLength={6} />
+                <input id="code" className="nfield font-dot text-2xl uppercase tracking-wider" placeholder="LL-XXXX-XXXX" autoComplete="off" autoFocus spellCheck={false} maxLength={20} value={code} onChange={(e) => setCode(e.target.value)} required minLength={6} />
               </>
             ) : (
               <>
