@@ -1,8 +1,8 @@
 import { LOBBY_COLORS, type LobbyStanding, type LobbySync, type SessionSummary } from '@last-lesson/scenario';
 import type { GameSession, RoomLink } from '../platform/session';
 import { arrowNav, asset, el, ui, wait } from './dom';
-import { getLanguage, setLanguage, tr } from '../i18n';
-import { LOCALE_NAMES, LOCALES } from '@last-lesson/scenario';
+import { icon, type IconName } from './icons';
+import { tr } from '../i18n';
 import { settingsPanel } from './overlay';
 
 const platformUrl = () => import.meta.env.VITE_PLATFORM_URL || (import.meta.env.DEV ? 'http://localhost:5173/student' : '/student');
@@ -10,43 +10,79 @@ const platformUrl = () => import.meta.env.VITE_PLATFORM_URL || (import.meta.env.
 /** Guests have no student page: they return to the room. */
 export const homeUrl = (session: GameSession) => (session.data.lobby ? platformUrl().replace(/\/student\/?$/, '/room') : platformUrl());
 
+/** Pages of the platform, next to the game on the same site. */
+const site = (path: string) => platformUrl().replace(/\/student\/?$/, '') + path;
+
+const BEVEL = 'shadow-[inset_0_calc(var(--u)*-2)_0_#a8741f,inset_0_calc(var(--u)*1)_0_#f6dd96]';
+function menuButton(name: IconName, label: string, run: () => void, main = false) {
+  const look = main
+    ? `bg-lamp text-ink text-12 py-4 hover:brightness-110 focus-visible:brightness-110 ${BEVEL}`
+    : 'border border-steel/70 bg-ink/75 text-paper text-10 py-3 hover:border-lamp hover:text-lamp focus-visible:border-lamp focus-visible:text-lamp';
+  return el('button', { class: `flex w-148 items-center gap-7 px-9 outline-none transition-[color,border-color,filter] ${look}`, onclick: run }, icon(name, 'h-11 w-11'), el('span', {}, label));
+}
+
+/** A window over the title screen. Escape and the cross close it and return the focus. */
+function windowBox(title: string, body: HTMLElement) {
+  const back = document.activeElement as HTMLElement | null;
+  const close = () => {
+    removeEventListener('keydown', key, true);
+    box.remove();
+    back?.focus();
+  };
+  const key = (e: KeyboardEvent) => {
+    if (e.code !== 'Escape') return;
+    e.stopPropagation();
+    close();
+  };
+  const box = el(
+    'div',
+    { class: 'absolute inset-0 z-40 grid place-items-center bg-black/70 p-8', role: 'dialog', 'aria-label': title, onclick: (e: Event) => e.target === box && close() },
+    el(
+      'div',
+      { class: 'max-h-full w-350 max-w-full overflow-auto border-2 border-steel bg-night shadow-[0_calc(var(--u)*8)_calc(var(--u)*24)_#000]' },
+      el('div', { class: 'sticky top-0 z-[1] flex items-center justify-between border-b border-steel/60 bg-[#151b2a] px-14 py-4' }, el('h2', { class: 'text-13 text-paper' }, title), el('button', { class: 'p-3 text-fog hover:text-lamp', 'aria-label': tr('Close'), onclick: close }, icon('close', 'h-12 w-12'))),
+      el('div', { class: 'px-14 pb-12 pt-10' }, body),
+    ),
+  );
+  ui.append(box);
+  addEventListener('keydown', key, true);
+  box.querySelector<HTMLElement>('button, input')?.focus();
+}
+
 /** Title screen. Resolves when the player starts. */
-export function titleScreen(opts: { session: GameSession | null; error?: string; onSound: () => void }): Promise<'start' | 'demo'> {
+export function titleScreen(opts: { session: GameSession | null; error?: string; onSound: () => void }): Promise<'start' | 'guest'> {
   return new Promise((resolve) => {
     const { session, error } = opts;
-    const go = (r: 'start' | 'demo') => {
+    const go = (r: 'start' | 'guest') => {
       opts.onSound();
       screen.classList.add('out');
       setTimeout(() => screen.remove(), 700);
       resolve(r);
     };
-    const more = el('div', { class: 'more' });
-    const toggle = (name: string, panel: () => HTMLElement) => {
-      const same = more.dataset.open === name;
-      more.dataset.open = same ? '' : name;
-      more.replaceChildren(...(same ? [] : [panel()]));
-    };
+    const open = (path: string) => () => location.assign(site(path));
     const main = session
-      ? el('button', { onclick: () => go('start') }, session.data.checkpoint ? tr('Return to the school') : tr('Take your seat'))
-      : el('button', { onclick: () => location.assign(platformUrl()) }, tr('Enter your access code'));
+      ? menuButton('play', session.data.checkpoint ? tr('Return to the school') : tr('Take your seat'), () => go('start'), true)
+      : menuButton('play', tr('Play'), () => go('guest'), true);
     const items = [
       main,
-      !session && el('button', { onclick: () => go('demo') }, tr('Play the demo night')),
-      el('button', { onclick: () => toggle('settings', settingsPanel) }, tr('Settings')),
-      el('button', { onclick: () => toggle('how', howTo) }, tr('How to play')),
-    ].filter((x): x is HTMLButtonElement => Boolean(x));
+      ...(session ? [] : [menuButton('key', tr('Enter with a code'), open('/')), menuButton('room', tr('Join a room'), open('/join')), menuButton('user', tr('Sign in'), open('/login'))]),
+      menuButton('gear', tr('Settings'), () => windowBox(tr('Settings'), settingsPanel())),
+      menuButton('help', tr('How to play'), () => windowBox(tr('How to play'), howTo())),
+    ];
+    const who = session ? `${session.data.student.firstName} ${session.data.student.lastName}`.trim() : '';
     const screen = el(
       'div',
       { class: 'title', style: `background-image:${asset('title.png')}` },
+      el('div', { class: 'pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,#05060af2_0%,#05060ab3_32%,transparent_62%),linear-gradient(0deg,#05060ae6_0%,transparent_34%)]' }),
       el('canvas', { class: 'rain', width: '480', height: '270', 'aria-hidden': 'true' }),
-      el('div', { class: 'langs top', role: 'radiogroup', 'aria-label': tr('Language') }, ...LOCALES.map((l) => el('button', { role: 'radio', lang: l, 'aria-checked': String(l === getLanguage()), class: l === getLanguage() ? 'on' : '', title: LOCALE_NAMES[l], onclick: () => l !== getLanguage() && setLanguage(l) }, l.toUpperCase()))),
-      el('div', { class: 'titlebox' }, el('h1', {}, 'Last Lesson'), el('p', { class: 'tag' }, tr('Knowledge is your only way out.')), el('nav', {}, ...items), more),
       el(
-        'aside',
-        {},
-        session ? el('p', {}, el('b', {}, session.data.branding.displayName), el('br'), tr(session.data.campaign.title), el('br'), `${session.data.student.firstName} ${session.data.student.lastName}`.trim()) : null,
-        error ? el('p', { class: 'err', role: 'alert' }, error) : null,
-        !session && !error ? el('p', {}, tr('The demo is not recorded.')) : null,
+        'div',
+        { class: 'absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-8 overflow-y-auto px-[max(calc(var(--u)*22),5vw)] py-12' },
+        el('div', {}, el('h1', { class: 'text-paper' }, 'Last Lesson'), el('p', { class: 'mt-2 text-11 text-lamp' }, tr('Knowledge is your only way out.'))),
+        session ? el('div', { class: 'w-176 border-l-2 border-lamp bg-ink/70 px-8 py-4 text-10 leading-snug text-fog' }, el('div', { class: 'text-12 text-paper' }, who), el('div', {}, tr(session.data.campaign.title)), el('div', {}, session.data.lobby?.title ?? session.data.branding.displayName)) : null,
+        error ? el('p', { class: 'w-200 border-l-2 border-red bg-ink/80 px-8 py-4 text-10 text-coral', role: 'alert' }, error) : null,
+        el('nav', { class: 'grid justify-items-start gap-3' }, ...items),
+        session ? null : el('p', { class: 'text-9 text-fog/80' }, tr('Without signing in the result is not saved.')),
       ),
     );
     arrowNav(screen);
@@ -56,8 +92,14 @@ export function titleScreen(opts: { session: GameSession | null; error?: string;
   });
 }
 
-const howTo = () =>
-  el('p', { class: 'how' }, tr('Follow the arrow to the next task. Walk with WASD or arrows, use things with E. Before a question you get a short lesson; J opens your notebook. The Invigilator sees light and hears noise. Hide in lockers and answer a quick question to stay quiet.'));
+const HOW: Array<[IconName, string, string]> = [
+  ['play', tr('Follow the yellow arrow'), tr('It points to the next task. Walk with WASD or the arrow keys, on a phone with the stick.')],
+  ['notebook', tr('Learn, then answer'), tr('Before a question you get a short lesson. J opens the notebook with everything you learned.')],
+  ['torch', tr('Stay unnoticed'), tr('The Invigilator sees light and hears running. Shift is faster, but louder.')],
+  ['room', tr('Hide in lockers'), tr('Answer a quick question there and he walks on.')],
+  ['talk', tr('Play with friends'), tr('In a room hold V and choose a phrase. The first one out wins.')],
+];
+const howTo = () => el('div', { class: 'grid gap-7' }, ...HOW.map(([name, title, text]) => el('div', { class: 'flex items-start gap-8' }, el('span', { class: 'grid h-24 w-24 shrink-0 place-items-center border border-steel bg-ink text-lamp' }, icon(name)), el('div', {}, el('div', { class: 'text-11 text-paper' }, title), el('div', { class: 'text-9 leading-snug text-fog' }, text)))));
 
 function rain(canvas: HTMLCanvasElement) {
   const g = canvas.getContext('2d')!;
@@ -124,7 +166,7 @@ export function resultScreen(summary: SessionSummary, session: GameSession, page
         ),
         summary.mistakes?.length ? el('details', { class: 'mistakes', open: true }, el('summary', {}, tr('Learn from this')), ...summary.mistakes.slice(0, 6).map((m) => el('p', {}, el('b', {}, m.prompt), ' ', m.explanation ?? ''))) : null,
         session.data.content.closingLine ? el('p', { class: 'closing' }, session.data.content.closingLine) : null,
-        el('p', { class: 'saved' }, session.live ? tr('Your result has been recorded.') : tr('Demo night: nothing was recorded.')),
+        el('p', { class: 'saved' }, session.live ? tr('Your result has been recorded.') : tr('You played without signing in, so nothing was saved.')),
         el('footer', {}, session.live ? el('button', { onclick: () => done('home') }, session.room ? tr('See the table') : tr('Back to my page')) : el('button', { onclick: () => done('again') }, tr('Play again'))),
       ),
     );

@@ -317,12 +317,12 @@ export class Overlay {
             { class: 'veil', role: 'dialog', 'aria-label': tr('Pause') },
             el(
               'div',
-              { class: 'menu wide' },
-              el('h2', {}, tr('Break')),
+              { class: 'max-h-[94%] w-350 max-w-[96%] overflow-auto border-2 border-steel bg-night px-14 py-10' },
+              el('h2', { class: 'mb-5 text-16 text-paper' }, tr('Break')),
+              el('div', { class: 'mb-8 grid grid-cols-2 gap-5' }, el('button', { class: 'bg-lamp px-10 py-4 text-center text-11 text-ink hover:brightness-110', onclick: () => done('resume') }, tr('Back to the school')), info.canLeave ? el('button', { class: 'border border-steel bg-ink px-10 py-4 text-center text-11 text-paper hover:border-red hover:text-coral', onclick: () => done('leave') }, info.live ? tr('Leave and hand in') : tr('Leave')) : null),
               info.objectives.length ? el('ul', { class: 'goals' }, ...info.objectives.map((o) => el('li', {}, o))) : null,
               settingsPanel(),
               isTouch() ? null : el('p', { class: 'keys' }, tr('WASD or arrows: move    Shift: run    E: use    F: torch    R: battery    Q: throw chalk    J: notebook    V: phrases    Esc: break')),
-              el('div', { class: 'row' }, el('button', { onclick: () => done('resume') }, tr('Back to the school')), info.canLeave ? el('button', { class: 'plain', onclick: () => done('leave') }, info.live ? tr('Leave and hand in') : tr('Leave')) : null),
             ),
           );
           ui.append(box);
@@ -346,11 +346,31 @@ export class Overlay {
 
 const ICON: Record<string, string> = { torch: '', key_bio: tr('KEY: BIOLOGY'), fuse: tr('FUSE'), key_staff: tr('KEY: STAFF'), clapper: tr('BELL CLAPPER') };
 
+const SETTING = 'flex min-h-16 items-center justify-between gap-6 border-b border-steel/30 py-2';
+
 export function settingsPanel(): HTMLElement {
-  const slider = (label: string, key: 'music' | 'sfx' | 'textSpeed' | 'brightness', min: number, max: number) =>
-    el('label', {}, el('span', {}, label), el('input', { type: 'range', min: String(min), max: String(max), step: '0.1', value: String(settings[key]), oninput: (e: Event) => setSetting(key, Number((e.target as HTMLInputElement).value)) }));
+  const slider = (label: string, key: 'music' | 'sfx' | 'textSpeed' | 'brightness', min: number, max: number) => {
+    const percent = () => `${Math.round(settings[key] * 100)}%`;
+    const value = el('span', { class: 'w-20 text-right text-8 text-lamp' }, percent());
+    const input = el('input', { class: 'h-6 w-48 cursor-pointer accent-lamp', type: 'range', min: String(min), max: String(max), step: '0.1', value: String(settings[key]), oninput: (e: Event) => { setSetting(key, Number((e.target as HTMLInputElement).value)); value.textContent = percent(); } });
+    return el('label', { class: SETTING }, el('span', {}, label), el('span', { class: 'flex items-center gap-5' }, input, value));
+  };
   const toggle = (label: string, key: 'calmFlashes' | 'lowQuality' | 'voice' | 'guide') =>
-    el('label', { class: 'check' }, el('input', { type: 'checkbox', checked: settings[key], onchange: (e: Event) => setSetting(key, (e.target as HTMLInputElement).checked) }), el('span', {}, label));
-  const language = el('div', { class: 'langs', role: 'radiogroup', 'aria-label': tr('Language') }, ...LOCALES.map((l) => el('button', { role: 'radio', lang: l, 'aria-checked': String(l === getLanguage()), class: l === getLanguage() ? 'on' : '', onclick: () => l !== getLanguage() && setLanguage(l) }, LOCALE_NAMES[l])));
-  return el('div', { class: 'settings' }, language, slider(tr('Music'), 'music', 0, 1), slider(tr('Sounds'), 'sfx', 0, 1), slider(tr('Text speed'), 'textSpeed', 0.5, 3), slider(tr('Brightness'), 'brightness', 0.8, 1.8), toggle(canSpeak() ? tr('Read aloud') : tr('Read aloud (no voice for this language in your browser)'), 'voice'), toggle(tr('Arrow to the next task'), 'guide'), toggle(tr('No lightning flashes'), 'calmFlashes'), toggle(tr('Simple lighting (older devices)'), 'lowQuality'));
+    el(
+      'label',
+      { class: `${SETTING} cursor-pointer` },
+      el('span', {}, label),
+      el('input', { class: 'peer sr-only', type: 'checkbox', role: 'switch', checked: settings[key], onchange: (e: Event) => setSetting(key, (e.target as HTMLInputElement).checked) }),
+      el('span', { class: 'relative h-11 w-22 shrink-0 border border-steel bg-ink after:absolute after:left-1 after:top-1 after:h-7 after:w-8 after:bg-fog after:transition-transform peer-checked:border-lamp peer-checked:bg-lamp/30 peer-checked:after:translate-x-10 peer-checked:after:bg-lamp peer-focus-visible:outline peer-focus-visible:outline-lamp', 'aria-hidden': 'true' }),
+    );
+  const language = el('div', { class: 'grid grid-cols-3 gap-4', role: 'radiogroup', 'aria-label': tr('Language') }, ...LOCALES.map((l) => el('button', { role: 'radio', lang: l, 'aria-checked': String(l === getLanguage()), class: `border px-6 py-3 text-center text-10 ${l === getLanguage() ? 'border-lamp bg-lamp text-ink' : 'border-steel bg-ink text-paper hover:border-lamp'}`, onclick: () => l !== getLanguage() && setLanguage(l) }, LOCALE_NAMES[l])));
+  const group = (title: string, ...rows: HTMLElement[]) => el('section', {}, el('h3', { class: 'mb-1 mt-6 text-9 font-normal text-lamp' }, title), ...rows);
+  return el(
+    'div',
+    { class: 'grid grid-cols-2 gap-x-14 text-10 text-paper' },
+    el('div', { class: 'col-span-2' }, language),
+    group(tr('Sound'), slider(tr('Music'), 'music', 0, 1), slider(tr('Sounds'), 'sfx', 0, 1), toggle(canSpeak() ? tr('Read aloud') : tr('Read aloud (no voice for this language in your browser)'), 'voice')),
+    group(tr('Picture'), slider(tr('Brightness'), 'brightness', 0.8, 1.8), toggle(tr('No lightning flashes'), 'calmFlashes'), toggle(tr('Simple lighting (older devices)'), 'lowQuality')),
+    group(tr('Help'), slider(tr('Text speed'), 'textSpeed', 0.5, 3), toggle(tr('Arrow to the next task'), 'guide')),
+  );
 }

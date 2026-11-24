@@ -67,6 +67,8 @@ async function refresh(): Promise<boolean> {
 
 async function failure(res: Response): Promise<ApiError> {
   const error = ((await res.json().catch(() => null)) as { error?: { code: string; message: string; details?: { fields?: Record<string, string[]> } } } | null)?.error;
+  // No body of ours: the API is starting, stopped or unreachable behind the proxy.
+  if (!error && res.status >= 500) return new ApiError('SERVER_DOWN', 'The server is not answering. Wait a few seconds and try again.', res.status);
   return new ApiError(error?.code ?? 'ERROR', error?.message ?? 'The server could not complete the request. Try again.', res.status, error?.details?.fields);
 }
 
@@ -102,13 +104,32 @@ export async function startSession(token: string): Promise<Me> {
   accessToken = token;
   const me = await get<Me>('/auth/me');
   useAuth.setState({ me, ready: true });
+  remember(true);
   return me;
 }
+
+/** Not a secret: only says whether a refresh cookie may exist, so first visits do not ask for a session they cannot have. */
+const VISITED = 'last-lesson-signed-in';
+const remember = (on: boolean) => {
+  try {
+    if (on) localStorage.setItem(VISITED, '1');
+    else localStorage.removeItem(VISITED);
+  } catch {
+    /* private mode */
+  }
+};
+const mayHaveSession = () => {
+  try {
+    return localStorage.getItem(VISITED) === '1';
+  } catch {
+    return true;
+  }
+};
 
 /** Runs once on load: continues the session from the refresh cookie when there is one. */
 export async function restoreSession() {
   try {
-    if (await refresh()) useAuth.setState({ me: await get<Me>('/auth/me') });
+    if (mayHaveSession() && (await refresh())) useAuth.setState({ me: await get<Me>('/auth/me') });
   } catch {
     /* stays signed out */
   }
@@ -118,6 +139,7 @@ export async function restoreSession() {
 export async function signOut() {
   await raw('POST', '/auth/logout').catch(() => undefined);
   accessToken = null;
+  remember(false);
   useAuth.setState({ me: null });
 }
 

@@ -12,27 +12,36 @@ import { boardScreen, homeUrl, resultScreen, titleScreen } from './ui/screens';
 import { mountTouch } from './ui/touch';
 import './styles.css';
 
-const VIEW = { w: 480, h: 270 };
+/** The school is always 270 pixels high on a wide screen and 360 wide on a narrow one; the other side follows the window. */
+const BASE = { h: 270, w: 360 };
+const LIMIT = { w: 760, h: 480 };
 const stage = document.querySelector<HTMLDivElement>('#stage')!;
 
-/** Canvas and DOM share one 16:9 box; --u is the size of one game pixel. */
-function fit() {
-  const s = Math.min(innerWidth / VIEW.w, innerHeight / VIEW.h);
-  const w = Math.floor(VIEW.w * s);
-  const h = Math.floor(VIEW.h * s);
-  stage.style.width = `${w}px`;
-  stage.style.height = `${h}px`;
-  document.documentElement.style.setProperty('--u', `${w / VIEW.w}px`);
+/** Canvas and DOM share one box that fills the window; --u is the size of one game pixel. */
+function view() {
+  const wide = innerWidth / innerHeight >= BASE.w / BASE.h;
+  const u = wide ? innerHeight / BASE.h : innerWidth / BASE.w;
+  return { u, w: Math.min(LIMIT.w, Math.ceil(innerWidth / u)), h: Math.min(LIMIT.h, Math.ceil(innerHeight / u)) };
+}
+
+function fit(game?: Phaser.Game) {
+  const { u, w, h } = view();
+  stage.style.width = `${Math.min(innerWidth, w * u)}px`;
+  stage.style.height = `${Math.min(innerHeight, h * u)}px`;
+  document.documentElement.style.setProperty('--u', `${u}px`);
+  // The canvas may be a fraction of a pixel larger than the stage, so that its pixels stay square.
+  const canvas = game?.canvas;
+  if (canvas) Object.assign(canvas.style, { width: `${w * u}px`, height: `${h * u}px` });
+  if (game && (game.scale.width !== w || game.scale.height !== h)) game.scale.resize(w, h);
 }
 fit();
-addEventListener('resize', fit);
 
 async function main() {
   const game = new Phaser.Game({
     type: Phaser.WEBGL,
     parent: 'game',
-    width: VIEW.w,
-    height: VIEW.h,
+    width: view().w,
+    height: view().h,
     pixelArt: true,
     antialias: false,
     backgroundColor: '#05060a',
@@ -43,6 +52,8 @@ async function main() {
     banner: false,
     scene: [Boot, School],
   });
+  addEventListener('resize', () => fit(game));
+  game.events.once('ready', () => fit(game));
   const audio = new Audio(game);
   const overlay = new Overlay(audio);
   onLink((s) => overlay.setLink(s));
@@ -66,7 +77,7 @@ async function main() {
     addEventListener('keydown', unlockMusic, { once: true });
     const choice = await titleScreen({ session, error, onSound: () => audio.play('slam', 0.4) });
     error = undefined;
-    const active: GameSession = choice === 'demo' || !session ? new DemoSession(params.get('name') ?? 'Student') : session;
+    const active: GameSession = choice === 'guest' || !session ? new DemoSession(params.get('name') ?? 'Student') : session;
     document.documentElement.style.setProperty('--accent', active.data.branding.accent);
     const result = await new Promise<SchoolResult>((resolve) => {
       game.scene.start('School', { session: active, audio, overlay, done: resolve });

@@ -1,5 +1,6 @@
 import { tr } from '../i18n';
 import { el } from './dom';
+import { icon, type IconName } from './icons';
 
 export const touch = { x: 0, y: 0, run: false };
 /** Past the edge of the stick the pupil runs, which is loud. */
@@ -70,32 +71,9 @@ function stick() {
   return base;
 }
 
-const ICONS: Record<string, string> = {
-  use: 'M8 12V5a2 2 0 014 0v6 M12 11V8a2 2 0 014 0v4 M16 12v-2a2 2 0 014 0v5a7 7 0 01-13 3l-4-6a2 2 0 013-2l2 2',
-  torch: 'M6 3h12l-2 7v11H8V10z M12 13v3',
-  battery: 'M3 7h15v10H3z M18 10h3v4h-3 M9 9l-2 3h4l-2 3',
-  chalk: 'M4 20L17 7l3 3L7 23z M15 4l2-2',
-  notebook: 'M5 3h14v18H5z M9 3v18 M12 8h4 M12 12h4',
-  talk: 'M3 4h18v12H11l-5 5v-5H3z',
-  pause: 'M7 4h3v16H7z M14 4h3v16h-3z',
-  full: 'M3 9V3h6 M21 9V3h-6 M3 15v6h6 M21 15v6h-6',
-};
-
-function icon(name: string, size = 'h-15 w-15') {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('class', `mx-auto ${size} fill-none stroke-current`);
-  svg.setAttribute('stroke-width', '2');
-  svg.setAttribute('aria-hidden', 'true');
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', ICONS[name]);
-  svg.append(path);
-  return svg;
-}
-
 /** pointerdown, not click: the thumb that steers must not delay the other one. */
-function button(name: string, title: string, run: () => void, size = 'h-28 w-28') {
-  return el('button', { class: `pointer-events-auto touch-none rounded-full border border-white/30 bg-ink/50 text-paper active:bg-lamp active:text-ink ${size}`, 'aria-label': title, onpointerdown: (e: Event) => { e.preventDefault(); run(); } }, icon(name));
+function button(name: IconName, title: string, run: () => void, size = 'h-28 w-28') {
+  return el('button', { class: `pointer-events-auto touch-none rounded-full border border-white/30 bg-ink/50 text-paper active:bg-lamp active:text-ink ${size}`, 'aria-label': title, onpointerdown: (e: Event) => { e.preventDefault(); run(); } }, el('span', { class: 'grid place-items-center' }, icon(name)));
 }
 
 async function fullscreen() {
@@ -111,7 +89,7 @@ async function fullscreen() {
 function mount(onTalk: () => void) {
   if (layer) return;
   label = el('span', { class: 'pointer-events-none absolute bottom-full right-0 mb-3 whitespace-nowrap bg-ink/80 px-4 text-9 empty:hidden' });
-  action = el('button', { class: 'pointer-events-auto h-46 w-46 touch-none rounded-full border-2 border-white/25 bg-ink/50 text-center text-14 text-paper opacity-50 active:bg-lamp active:text-ink data-[can=yes]:border-lamp data-[can=yes]:opacity-100', 'aria-label': tr('Use'), onpointerdown: (e: Event) => { e.preventDefault(); pressUse(); } }, icon('use', 'h-24 w-24'));
+  action = el('button', { class: 'pointer-events-auto h-46 w-46 touch-none rounded-full border-2 border-white/25 bg-ink/50 text-center text-14 text-paper opacity-50 active:bg-lamp active:text-ink data-[can=yes]:border-lamp data-[can=yes]:opacity-100', 'aria-label': tr('Use'), onpointerdown: (e: Event) => { e.preventDefault(); pressUse(); } }, el('span', { class: 'grid place-items-center' }, icon('use', 'h-24 w-24')));
   const right = 'right-[max(calc(var(--u)*8),env(safe-area-inset-right))]';
   layer = el(
     'div',

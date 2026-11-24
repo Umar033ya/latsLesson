@@ -1,3 +1,6 @@
+/** Names the variables that are missing or unsafe, never their values. */
+export class ConfigError extends Error {}
+
 /** Fails fast on unsafe configuration instead of running with weak secrets. */
 export function assertConfig(env: NodeJS.ProcessEnv = process.env) {
   const secrets = ['JWT_ACCESS_SECRET', 'GAME_TOKEN_SECRET', 'CODE_PEPPER'];
@@ -10,7 +13,7 @@ export function assertConfig(env: NodeJS.ProcessEnv = process.env) {
     if (!env.WEB_ORIGIN) problems.push('WEB_ORIGIN is not set');
   }
   if (env.JWT_ACCESS_SECRET && env.JWT_ACCESS_SECRET === env.GAME_TOKEN_SECRET) problems.push('JWT_ACCESS_SECRET and GAME_TOKEN_SECRET must differ');
-  if (problems.length) throw new Error(`Invalid configuration:\n - ${problems.join('\n - ')}`);
+  if (problems.length) throw new ConfigError(`Invalid configuration:\n - ${problems.join('\n - ')}`);
 }
 
 export const webOrigins = () =>

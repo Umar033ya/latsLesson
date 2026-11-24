@@ -1,4 +1,4 @@
-// Visual playthrough of the demo: node e2e/play.mjs <output folder>
+// Visual playthrough without signing in: node e2e/play.mjs <output folder>
 import { chromium } from '@playwright/test';
 const out = process.argv[2] ?? 'test-results';
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--mute-audio'] });
@@ -7,7 +7,7 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 await page.goto(process.env.GAME ?? 'http://localhost:5174/');
-await page.getByRole('button', { name: 'Play the demo night' }).click({ timeout: 30000 });
+await page.getByRole('button', { name: 'Play', exact: true }).click({ timeout: 30000 });
 await page.waitForFunction(() => window.__school?.player && document.querySelector('.talk'), null, { timeout: 20000 });
 const shot = (n) => page.screenshot({ path: `${out}/${n}.png` });
 const skip = async () => { for (let i = 0; i < 200; i += 1) { if (await page.locator('.talk').count()) await page.keyboard.press('e'); else { await page.waitForTimeout(260); if (!(await page.locator('.talk').count())) return; } await page.waitForTimeout(130); } };

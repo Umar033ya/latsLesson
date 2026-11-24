@@ -177,7 +177,7 @@ export class School extends Phaser.Scene {
     this.buildThings();
     this.buildLight();
     this.guide = this.add.triangle(0, 0, 0, 0, 9, 4, 0, 8, 0xf6dd96, 0.95).setOrigin(0.5).setDepth(9000).setVisible(false);
-    this.dust = this.add.particles(0, 0, 'glow', { scale: { min: 0.008, max: 0.016 }, alpha: { start: 0, end: 0.5, ease: 'Sine.easeInOut' }, speedX: { min: -4, max: 4 }, speedY: { min: -6, max: 2 }, lifespan: 4200, frequency: 170, emitZone: { type: 'random', source: new Phaser.Geom.Rectangle(-240, -135, 480, 270) as never, quantity: 1 } as never }).setDepth(8000);
+    this.dust = this.add.particles(0, 0, 'glow', { scale: { min: 0.008, max: 0.016 }, alpha: { start: 0, end: 0.5, ease: 'Sine.easeInOut' }, speedX: { min: -4, max: 4 }, speedY: { min: -6, max: 2 }, lifespan: 4200, frequency: 110, emitZone: { type: 'random', source: new Phaser.Geom.Rectangle(-380, -240, 760, 480) as never, quantity: 1 } as never }).setDepth(8000);
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, COLS * TILE, ROWS * TILE);
@@ -820,7 +820,7 @@ export class School extends Phaser.Scene {
     this.save();
     const r = await this.ui.pause({ objectives: this.session.data.campaign.objectives, live: this.session.live, canLeave: true });
     if (r === 'leave') {
-      const sure = await this.ui.choose(this.session.live ? tr('Hand in what you have answered so far?') : tr('Leave the demo?'), [tr('Yes, leave'), tr('Stay')]);
+      const sure = await this.ui.choose(this.session.live ? tr('Hand in what you have answered so far?') : tr('Leave the game?'), [tr('Yes, leave'), tr('Stay')]);
       if (sure === 0) await this.end('LEFT', []);
     }
   }

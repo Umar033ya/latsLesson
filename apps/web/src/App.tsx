@@ -3,7 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { Shell } from './components/Shell';
 import { homeOf, useAuth, type Me } from './lib/api';
-import { CodePage, LoginPage, RegisterPage } from './features/auth/pages';
+import { CodePage } from './features/auth/landing';
+import { LoginPage, RegisterPage } from './features/auth/pages';
 import { tr } from './lib/i18n';
 
 const named = (load: () => Promise<any>, name: string) => lazy(() => load().then((m) => ({ default: m[name] })));

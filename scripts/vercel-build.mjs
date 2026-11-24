@@ -9,7 +9,7 @@ run('pnpm build:packages');
 run('pnpm --filter @last-lesson/backend build');
 run('pnpm --filter @last-lesson/web build');
 run('pnpm --filter @last-lesson/game build', { VITE_PLATFORM_URL: '/student' });
-if (process.env.VERCEL_ENV === 'production') run('npx prisma migrate deploy --schema prisma/schema.prisma');
+run('node scripts/vercel-migrate.mjs');
 
 rmSync('vercel-dist', { recursive: true, force: true });
 cpSync('apps/web/dist', 'vercel-dist', { recursive: true });

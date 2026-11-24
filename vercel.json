@@ -1,28 +1,75 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "npx pnpm@12.5.1 install --frozen-lockfile",
-  "buildCommand": "npx pnpm@12.5.1 vercel:build",
+  "installCommand": "npx -y pnpm@12.5.1 install --frozen-lockfile",
+  "buildCommand": "npx -y pnpm@12.5.1 run vercel:build",
   "outputDirectory": "vercel-dist",
-  "functions": { "api/index.js": { "maxDuration": 30, "memory": 1024, "includeFiles": "{apps/backend/dist/**,packages/*/dist/**,prisma/schema.prisma}" } },
-  "redirects": [{ "source": "/play", "destination": "/play/", "permanent": false }],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30,
+      "memory": 1024,
+      "includeFiles": "{apps/backend/dist/**,packages/*/dist/**,prisma/schema.prisma}"
+    }
+  },
+  "redirects": [
+    {
+      "source": "/play",
+      "destination": "/play/",
+      "permanent": false
+    }
+  ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/health", "destination": "/api/index" },
-    { "source": "/play/(.*)", "destination": "/play/index.html" },
-    { "source": "/((?!api/|play/|assets/|art/|fonts/|icons/).*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/play/(.*)",
+      "destination": "/play/index.html"
+    },
+    {
+      "source": "/((?!api/|play/|assets/|art/|fonts/|icons/).*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self'; connect-src 'self' blob: data: https://accounts.google.com/gsi/; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self'; connect-src 'self' blob: data: https://accounts.google.com/gsi/; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        }
       ]
     },
-    { "source": "/(assets|fonts|play/assets|play/fonts)/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }] }
+    {
+      "source": "/(assets|fonts|play/assets|play/fonts)/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
+        }
+      ]
+    }
   ]
 }

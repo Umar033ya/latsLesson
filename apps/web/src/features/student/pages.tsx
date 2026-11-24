@@ -1,16 +1,18 @@
 import { Suspense, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, NavLink, Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { BookOpen, CheckCircle2, ClipboardCheck, Clock, DoorOpen, LogOut, Map as MapIcon, Moon, Play, Settings, Target, TrendingUp, Users, type LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { THEMES } from '@last-lesson/scenario';
 import { AnswerControl } from '../../components/QuestionFields';
 import { Review } from '../../components/Review';
 import { GoogleLink } from '../../components/GoogleLink';
-import { LanguagePicker, LanguageSwitch } from '../../components/Preferences';
+import { LanguagePicker } from '../../components/Preferences';
 import { Wordmark } from '../../components/Shell';
+import { Avatar } from '../../components/ui';
 import { get, post, signOut, startSession, useAuth } from '../../lib/api';
 import { errorText, plural, tr } from '../../lib/i18n';
-import { OUTCOME, day, mins, when } from '../../lib/format';
+import { OUTCOME, day, mins, pct, when } from '../../lib/format';
 
 const useHome = () => useQuery({ queryKey: ['student-home'], queryFn: () => get<any>('/student/home') });
 
@@ -20,23 +22,34 @@ function State({ q, children }: { q: any; children: (d: any) => React.ReactNode 
   return <>{children(q.data)}</>;
 }
 
+const NAV: Array<[string, string, LucideIcon]> = [['/student', tr('Campaigns'), MapIcon], ['/student/prepare', tr('Prepare'), BookOpen], ['/student/results', tr('Results'), ClipboardCheck], ['/student/progress', tr('Progress'), TrendingUp], ['/student/settings', tr('Settings'), Settings]];
+
 export function StudentLayout() {
   const home = useHome();
   const nav = useNavigate();
-  const link = ({ isActive }: { isActive: boolean }) => clsx('border-b-2 pb-1 font-dot text-lg', isActive ? 'border-lamp text-bone' : 'border-transparent text-fog hover:text-bone');
+  const me = useAuth((s) => s.me)!;
   return (
-    <div className="night">
-      <header className="border-b border-night-4 bg-night-2">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-8 gap-y-3 px-4 py-4 sm:px-6">
-          <Link to="/student" className="flex items-center gap-3">{home.data?.center.logoUrl && <img src={home.data.center.logoUrl} alt="" className="h-9 w-9 bg-white object-contain rounded-md" />}<span><Wordmark className="block text-3xl text-bone" /><span className="text-sm text-fog">{home.data?.center.displayName}</span></span></Link>
-          <nav className="flex flex-wrap gap-x-6 gap-y-1" aria-label={tr('Student')}><NavLink end to="/student" className={link}>{tr('Campaigns')}</NavLink><NavLink to="/student/prepare" className={link}>{tr('Prepare')}</NavLink><NavLink to="/student/results" className={link}>{tr('Results')}</NavLink><NavLink to="/student/progress" className={link}>{tr('Progress')}</NavLink><NavLink to="/student/settings" className={link}>{tr('Settings')}</NavLink></nav>
-          <div className="flex items-center gap-4"><LanguageSwitch dark /><button className="text-fog hover:text-bone" onClick={async () => { await signOut(); nav('/'); }}>{tr('Sign out')}</button></div>
+    <div className="night pb-20 md:pb-0">
+      <header className="sticky top-0 z-30 border-b border-white/5 bg-night/85 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <Link to="/student" className="flex min-w-0 items-center gap-3">{home.data?.center.logoUrl && <img src={home.data.center.logoUrl} alt="" className="h-9 w-9 rounded-lg bg-white object-contain" />}<span className="min-w-0"><Wordmark className="block text-[30px] text-bone" /><span className="block truncate text-[13px] text-fog">{home.data?.center.displayName}</span></span></Link>
+          <nav className="hidden gap-1 rounded-2xl border border-white/10 bg-white/5 p-1 md:flex" aria-label={tr('Student')}>
+            {NAV.map(([to, label, Icon]) => <NavLink key={to} end={to === '/student'} to={to} className={({ isActive }) => clsx('flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition', isActive ? 'bg-lamp text-night' : 'text-fog hover:text-bone')}><Icon size={16} aria-hidden="true" />{label}</NavLink>)}
+          </nav>
+          <div className="flex items-center gap-2"><Avatar name={`${me.firstName} ${me.lastName}`} /><button className="rounded-xl p-2 text-fog hover:bg-white/10 hover:text-bone" aria-label={tr('Sign out')} title={tr('Sign out')} onClick={async () => { await signOut(); nav('/'); }}><LogOut size={18} /></button></div>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6"><Suspense fallback={<p className="font-dot text-fog">{tr('Opening...')}</p>}><Outlet /></Suspense></main>
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-white/10 bg-night-2/95 backdrop-blur md:hidden" aria-label={tr('Student')}>
+        {NAV.map(([to, label, Icon]) => <NavLink key={to} end={to === '/student'} to={to} className={({ isActive }) => clsx('flex flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-semibold', isActive ? 'text-lamp' : 'text-fog')}><Icon size={20} aria-hidden="true" /><span className="max-w-full truncate">{label}</span></NavLink>)}
+      </nav>
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6"><Suspense fallback={<p className="text-fog">{tr('Opening...')}</p>}><Outlet /></Suspense></main>
     </div>
   );
 }
+
+const Stat = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: React.ReactNode }) => (
+  <div className="npanel flex items-center gap-4 p-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-lamp/15 text-lamp"><Icon size={20} aria-hidden="true" /></span><div className="min-w-0"><p className="text-[13px] text-fog">{label}</p><p className="text-2xl font-bold tabular-nums leading-tight text-bone">{value}</p></div></div>
+);
 
 export function useLaunch() {
   return useMutation({
@@ -56,29 +69,37 @@ export function Home() {
     <State q={q}>
       {(d) => (
         <>
-          <h1 className="font-dot text-3xl">{tr('Good evening, {0}.', { 0: d.student.firstName })}</h1>
-          <p className="mt-1 text-fog">{d.student.group ? `${d.student.group}. ` : ''}{d.summary.finished ? tr('Finished nights: {0}. Correct answers: {1}%.', { 0: d.summary.finished, 1: d.summary.averageAccuracy }) : tr('Your name is in the register. Choose where to start.')}</p>
-          {d.maintenance && <p className="mt-4 border-l-4 border-lamp bg-night-2 p-3">{d.maintenance}</p>}
-          {d.announcement && <p className="mt-4 border-l-4 border-lamp bg-night-2 p-3">{d.announcement}</p>}
-          {preparationId && <p className="mt-4 border-l-4 border-[#4c7763] bg-night-2 p-3">{tr('You are prepared. The questions inside will not repeat your practice.')}</p>}
+          <section className="relative overflow-hidden rounded-3xl border border-white/10">
+            <div className="absolute inset-0 bg-cover bg-[70%_65%] [image-rendering:pixelated]" style={{ backgroundImage: 'url(/art/title.png)' }} aria-hidden="true" />
+            <div className="absolute inset-0 bg-gradient-to-r from-night via-night/80 to-night/10" aria-hidden="true" />
+            <div className="relative flex flex-wrap items-end justify-between gap-6 p-6 sm:p-9">
+              <div><h1 className="ntitle !text-[34px]">{tr('Good evening, {0}.', { 0: d.student.firstName })}</h1><p className="mt-1.5 max-w-[46ch] text-fog">{d.student.group ? `${d.student.group}. ` : ''}{tr('Your name is in the register. Choose where to start.')}</p></div>
+              <Link className="nbtn" to="/join"><DoorOpen size={18} />{tr('Join a room')}</Link>
+            </div>
+          </section>
+          <div className="mt-5 grid gap-4 sm:grid-cols-3"><Stat icon={Moon} label={tr('Finished nights')} value={d.summary.finished} /><Stat icon={Target} label={tr('Correct answers')} value={d.summary.averageAccuracy === null ? '0%' : `${d.summary.averageAccuracy}%`} /><Stat icon={Users} label={tr('Group')} value={d.student.group ?? tr('No group')} /></div>
+          {d.maintenance && <p className="npanel mt-4 border-l-4 !border-l-lamp p-4">{d.maintenance}</p>}
+          {d.announcement && <p className="npanel mt-4 border-l-4 !border-l-lamp p-4">{d.announcement}</p>}
+          {preparationId && <p className="npanel mt-4 border-l-4 !border-l-[#4c7763] p-4">{tr('You are prepared. The questions inside will not repeat your practice.')}</p>}
           {launch.error && <p className="mt-4 text-[#f09a86]" role="alert">{errorText(launch.error)}</p>}
-          <Link className="nbtn-line mt-5 border-lamp !text-lamp" to="/join">{tr('Join a room')}</Link>
-          <div className="mt-7 space-y-5">
+          <h2 className="mb-4 mt-9 text-xl font-bold">{tr('Campaigns')}</h2>
+          <div className="grid gap-5 lg:grid-cols-2">
             {d.campaigns.map((c: any) => {
               const theme = THEMES.find((t) => t.id === c.theme) ?? THEMES[0];
               return (
-                <article key={c.id} className="npanel grid overflow-hidden sm:grid-cols-[220px_1fr]">
-                  <div className="relative h-32 sm:h-auto" aria-hidden="true">
+                <article key={c.id} className="npanel flex flex-col overflow-hidden transition hover:border-lamp/40">
+                  <div className="relative h-40" aria-hidden="true">
                     <div className="absolute inset-0 bg-cover bg-center [image-rendering:pixelated]" style={{ backgroundImage: `url(/art/${c.best?.outcome === 'DISMISSED' ? 'dawn' : 'title'}.png)` }} />
                     <div className="absolute inset-0 mix-blend-color" style={{ background: theme.accent, opacity: theme.id === 'MIDNIGHT' ? 0 : 0.4 }} />
                   </div>
-                  <div className="p-5">
-                    <h2 className="font-jac text-3xl leading-none">{c.title}</h2>
-                    {c.description && <p className="mt-2 max-w-[60ch] text-fog">{c.description}</p>}
-                    <p className="mt-2 text-sm text-fog">{c.subjects.map((s: any) => tr(s.name)).join(', ')}. {LEVEL[c.difficulty]}. {plural(c.questionCount, 'question|questions')}, {tr('up to {0} minutes', { 0: c.gameplay.sessionMinutes })}. {c.gameplay.mode === 'STUDY' ? tr('Study mode.') : ''} {c.availableTo ? tr('Open until {0}.', { 0: day(c.availableTo) }) : ''}</p>
-                    {c.objectives.length > 0 && <ul className="mt-2 list-disc pl-5 text-sm text-fog">{c.objectives.map((o: string) => <li key={o}>{o}</li>)}</ul>}
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <button className="nbtn" disabled={launch.isPending || Boolean(d.maintenance)} onClick={() => launch.mutate({ campaignId: c.id, preparationId })}>{c.inProgress ? tr('Continue') : c.attempts ? tr('Play again') : tr('Start')}</button>
+                  <div className="flex flex-1 flex-col p-5 sm:p-6">
+                    <h3 className="text-[22px] font-bold leading-tight text-bone">{c.title}</h3>
+                    {c.description && <p className="mt-2 text-fog">{c.description}</p>}
+                    <ul className="mt-3 flex flex-wrap gap-2 text-[13px]">{[...c.subjects.map((x: any) => tr(x.name)), LEVEL[c.difficulty], plural(c.questionCount, 'question|questions'), tr('up to {0} minutes', { 0: c.gameplay.sessionMinutes }), ...(c.gameplay.mode === 'STUDY' ? [tr('Study mode.')] : []), ...(c.availableTo ? [tr('Open until {0}.', { 0: day(c.availableTo) })] : [])].map((t: string) => <li key={t} className="rounded-full bg-white/5 px-3 py-1 text-fog ring-1 ring-inset ring-white/10">{t}</li>)}</ul>
+                    {c.objectives.length > 0 && <ul className="mt-4 space-y-1.5 text-[15px] text-fog">{c.objectives.map((o: string) => <li key={o} className="flex gap-2"><CheckCircle2 size={17} className="mt-0.5 shrink-0 text-lamp" aria-hidden="true" />{o}</li>)}</ul>}
+                    <div className="flex-1" />
+                    <div className="mt-5 flex flex-wrap items-center gap-3">
+                      <button className="nbtn" disabled={launch.isPending || Boolean(d.maintenance)} onClick={() => launch.mutate({ campaignId: c.id, preparationId })}><Play size={17} />{c.inProgress ? tr('Continue') : c.attempts ? tr('Play again') : tr('Start')}</button>
                       <Link className="nbtn-line" to="/student/prepare">{tr('Prepare first')}</Link>
                       {c.best && <span className="text-sm text-lamp">{tr('Best: {0} of {1}', { 0: c.best.score, 1: c.best.maxScore })}, {OUTCOME[c.best.outcome]?.toLowerCase()}</span>}
                     </div>
@@ -102,23 +123,23 @@ export function Prepare() {
   const [topics, setTopics] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState('MEDIUM');
   const make = useMutation({ mutationFn: () => post<any>('/ai-preparation', { subjectId, topics, difficulty }), onSuccess: (g) => nav(`/student/prepare/${g.id}`) });
-  const chip = (on: boolean) => clsx('border px-3 py-1.5 font-dot', on ? 'border-lamp bg-lamp text-night' : 'border-night-4 text-fog hover:border-lamp');
+  const chip = (on: boolean) => clsx('rounded-xl border px-4 py-2 font-semibold transition', on ? 'border-lamp bg-lamp text-night' : 'border-white/15 bg-white/5 text-fog hover:border-lamp/60 hover:text-bone');
   return (
     <State q={q}>
       {(d) => {
         const subject = d.subjects.find((s: any) => s.id === subjectId);
         return (
           <>
-            <h1 className="font-dot text-3xl">{tr('Prepare')}</h1>
+            <h1 className="ntitle">{tr('Prepare')}</h1>
             <p className="mt-1 max-w-[60ch] text-fog">{tr('Choose what to revise. You get short notes, examples and a few practice questions. Practice is not graded.')}</p>
-            <section className="npanel mt-6 space-y-5 p-5">
+            <section className="npanel mt-6 space-y-6 p-6">
               <div><p className="mb-2 text-fog">{tr('Subject')}</p><div className="flex flex-wrap gap-2">{d.subjects.map((s: any) => <button key={s.id} aria-pressed={s.id === subjectId} className={chip(s.id === subjectId)} onClick={() => { setSubject(s.id); setTopics([]); }}>{tr(s.name)}</button>)}</div></div>
               {subject && <div><p className="mb-2 text-fog">{tr('Topics')}</p><div className="flex flex-wrap gap-2">{subject.topics.map((t: any) => <button key={t.id} aria-pressed={topics.includes(t.name)} className={chip(topics.includes(t.name))} onClick={() => setTopics(topics.includes(t.name) ? topics.filter((x) => x !== t.name) : [...topics, t.name])}>{tr(t.name)}</button>)}</div></div>}
               {subject && <div><p className="mb-2 text-fog">{tr('Difficulty')}</p><div className="flex flex-wrap gap-2">{Object.entries(LEVEL).map(([v, t]) => <button key={v} aria-pressed={difficulty === v} className={chip(difficulty === v)} onClick={() => setDifficulty(v)}>{t}</button>)}</div></div>}
               {make.error && <p className="text-[#f09a86]" role="alert">{errorText(make.error)}</p>}
               <button className="nbtn" disabled={!topics.length || make.isPending} onClick={() => make.mutate()}>{make.isPending ? tr('Preparing your notes...') : tr('Make my study guide')}</button>
             </section>
-            {Boolean(past.data?.length) && <section className="mt-8"><h2 className="mb-2 font-dot text-xl">{tr('Earlier guides')}</h2><ul className="divide-y divide-night-4 border-y border-night-4">{past.data!.map((g) => <li key={g.id}><Link className="flex flex-wrap justify-between gap-2 py-2.5 hover:text-lamp" to={`/student/prepare/${g.id}`}><span>{tr(g.subject.name)}: {g.topics.map((x: string) => tr(x)).join(', ')}</span><span className="text-fog">{when(g.createdAt)}</span></Link></li>)}</ul></section>}
+            {Boolean(past.data?.length) && <section className="mt-8"><h2 className="mb-2 text-lg font-bold">{tr('Earlier guides')}</h2><ul className="divide-y divide-night-4 border-y border-night-4">{past.data!.map((g) => <li key={g.id}><Link className="flex flex-wrap justify-between gap-2 py-2.5 hover:text-lamp" to={`/student/prepare/${g.id}`}><span>{tr(g.subject.name)}: {g.topics.map((x: string) => tr(x)).join(', ')}</span><span className="text-fog">{when(g.createdAt)}</span></Link></li>)}</ul></section>}
           </>
         );
       }}
@@ -133,12 +154,12 @@ export function Guide() {
     <State q={q}>
       {(g) => (
         <article>
-          <h1 className="font-dot text-3xl">{tr(g.subject.name)}: {g.topics.map((x: string) => tr(x)).join(', ')}</h1>
+          <h1 className="ntitle">{tr(g.subject.name)}: {g.topics.map((x: string) => tr(x)).join(', ')}</h1>
           <p className="mt-1 max-w-[64ch] text-fog">{tr(g.summary)}</p>
           {g.provider !== 'local' && <p className="mt-2 text-sm text-fog">{tr('These notes were written with the help of AI. If something looks wrong, ask your teacher.')}</p>}
-          <div className="mt-6 space-y-4">{g.explanations.map((e: any, i: number) => <section key={i} className="border border-[#b9ad8c] bg-bone p-5 text-[#2a2420]"><h2 className="font-jac text-2xl text-[#6f2430]">{e.topic}</h2><p className="mt-1 max-w-[68ch] whitespace-pre-line">{e.text}</p></section>)}</div>
-          {g.examples.length > 0 && <section className="mt-8"><h2 className="mb-2 font-dot text-xl">{tr('Examples')}</h2><ul className="list-disc space-y-1 pl-5 text-fog">{g.examples.map((e: any, i: number) => <li key={i}>{e.text}</li>)}</ul></section>}
-          {g.practice.length > 0 && <section className="mt-8"><h2 className="mb-3 font-dot text-xl">{tr('Practice')}</h2><ol className="space-y-4">{g.practice.map((p: any, i: number) => <Practice key={p.id} guideId={g.id} p={p} n={i + 1} />)}</ol></section>}
+          <div className="mt-6 space-y-4">{g.explanations.map((e: any, i: number) => <section key={i} className="rounded-2xl bg-bone p-6 text-[#2a2420]"><h2 className="text-xl font-bold text-[#6f2430]">{e.topic}</h2><p className="mt-1 max-w-[68ch] whitespace-pre-line">{e.text}</p></section>)}</div>
+          {g.examples.length > 0 && <section className="mt-8"><h2 className="mb-2 text-lg font-bold">{tr('Examples')}</h2><ul className="list-disc space-y-1 pl-5 text-fog">{g.examples.map((e: any, i: number) => <li key={i}>{e.text}</li>)}</ul></section>}
+          {g.practice.length > 0 && <section className="mt-8"><h2 className="mb-3 text-lg font-bold">{tr('Practice')}</h2><ol className="space-y-4">{g.practice.map((p: any, i: number) => <Practice key={p.id} guideId={g.id} p={p} n={i + 1} />)}</ol></section>}
           <div className="mt-8"><Link className="nbtn" to={`/student?guide=${g.id}`}>{tr('I am ready')}</Link></div>
         </article>
       )}
@@ -165,10 +186,10 @@ export function MyResults() {
     <State q={q}>
       {(d) => (
         <>
-          <h1 className="font-dot text-3xl">{tr('Results')}</h1>
+          <h1 className="ntitle">{tr('Results')}</h1>
           {d.length ? (
-            <ul className="mt-5 divide-y divide-night-4 border-y border-night-4">
-              {d.map((r: any) => <li key={r.id}><Link to={`/student/results/${r.id}`} className="grid gap-x-6 gap-y-1 py-3.5 hover:bg-night-2 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center sm:px-3"><span><b className="font-dot text-lg font-normal">{r.campaign?.title ?? tr('Removed campaign')}</b><span className="block text-sm text-fog">{when(r.endedAt)}, {mins(r.durationSeconds)}</span></span><span className="text-fog">{OUTCOME[r.outcome] ?? r.outcome}</span><span>{tr('{0}% correct', { 0: Math.round(r.accuracy) })}</span><span className="font-dot text-xl text-lamp">{r.score}/{r.maxScore}</span></Link></li>)}
+            <ul className="mt-6 grid gap-3">
+              {d.map((r: any) => <li key={r.id}><Link to={`/student/results/${r.id}`} className="npanel grid gap-x-8 gap-y-1 p-4 transition hover:border-lamp/40 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center sm:px-5"><span><b className="text-[17px]">{r.campaign?.title ?? tr('Removed campaign')}</b><span className="block text-sm text-fog">{when(r.endedAt)}, {mins(r.durationSeconds)}</span></span><span className="text-fog">{OUTCOME[r.outcome] ?? r.outcome}</span><span>{tr('{0}% correct', { 0: Math.round(r.accuracy) })}</span><span className="text-xl font-bold tabular-nums text-lamp">{r.score}<span className="text-sm text-fog">/{r.maxScore}</span></span></Link></li>)}
             </ul>
           ) : <p className="npanel mt-5 p-8 text-center text-fog">{tr('Nothing here yet. Your first finished night will appear on this page.')}</p>}
         </>
@@ -185,7 +206,7 @@ export function MyReview() {
       {(r) => (
         <>
           <Link to="/student/results" className="text-fog hover:text-bone">{tr('All results')}</Link>
-          <h1 className="mt-1 font-dot text-3xl">{r.campaign?.title}</h1>
+          <h1 className="ntitle mt-1">{r.campaign?.title}</h1>
           <p className="mb-6 mt-1 text-fog">{OUTCOME[r.outcome]}. {tr('{0} of {1} points, {2}% correct', { 0: r.score, 1: r.maxScore, 2: Math.round(r.accuracy) })}, {mins(r.durationSeconds)}.</p>
           <Review dark answers={r.answers} />
         </>
@@ -200,18 +221,24 @@ export function MyProgress() {
     <State q={q}>
       {(d) => (
         <>
-          <h1 className="font-dot text-3xl">{tr('Progress')}</h1>
-          <p className="mt-1 text-fog">{tr('Finished: {0} of {1}.', { 0: d.completed, 1: d.sessions })} {d.averageAccuracy !== null ? tr('Correct on average: {0}%.', { 0: d.averageAccuracy }) : ''} {tr('Time in the school: {0}.', { 0: mins(d.timeSeconds) })}</p>
-          <div className="mt-7 grid gap-8 md:grid-cols-2">
-            <section>
-              <h2 className="mb-3 font-dot text-xl">{tr('By topic')}</h2>
-              {d.topics.length ? <ul className="space-y-3">{d.topics.map((t: any) => <li key={t.topic}><div className="flex justify-between"><span>{tr(t.topic)} <span className="text-fog">{tr(t.subject)}</span></span><span>{t.correct} / {t.answered}</span></div><div className="mt-1 h-2 bg-night-3"><div className={t.accuracy < 70 ? 'h-full bg-[#b23a3f]' : 'h-full bg-[#4c7763]'} style={{ width: `${t.accuracy}%` }} /></div></li>)}</ul> : <p className="text-fog">{tr('Topics appear after your first answers.')}</p>}
+          <h1 className="ntitle">{tr('Progress')}</h1>
+          <div className="mt-6 grid gap-4 sm:grid-cols-3"><Stat icon={Moon} label={tr('Finished nights')} value={<>{d.completed}<span className="text-base text-fog"> / {d.sessions}</span></>} /><Stat icon={Target} label={tr('Correct answers')} value={pct(d.averageAccuracy)} /><Stat icon={Clock} label={tr('Time in the school')} value={mins(d.timeSeconds)} /></div>
+          <div className="mt-5 grid gap-5 lg:grid-cols-[3fr_2fr]">
+            <section className="npanel p-6">
+              <h2 className="mb-5 text-lg font-bold">{tr('By topic')}</h2>
+              {d.topics.length ? <ul className="space-y-4">{d.topics.map((t: any) => <li key={t.topic}><div className="flex items-baseline justify-between gap-3"><span className="font-semibold">{tr(t.topic)} <span className="text-[13px] font-normal text-fog">{tr(t.subject)}</span></span><span className="whitespace-nowrap tabular-nums"><b className={t.accuracy < 70 ? 'text-[#f09a86]' : 'text-bone'}>{t.accuracy}%</b> <span className="text-[13px] text-fog">{t.correct} / {t.answered}</span></span></div><div className="mt-2 h-2 rounded-full bg-white/10"><div className={clsx('h-full rounded-full', t.accuracy < 70 ? 'bg-[#d9695c]' : 'bg-[#5fa585]')} style={{ width: `${Math.max(2, t.accuracy)}%` }} /></div></li>)}</ul> : <p className="text-fog">{tr('Topics appear after your first answers.')}</p>}
             </section>
-            <section>
-              <h2 className="mb-3 font-dot text-xl">{tr('Over time')}</h2>
-              {d.timeline.length ? <div className="flex h-40 items-end gap-1 border-b border-night-4" role="img" aria-label={tr('Accuracy of each session')}>{d.timeline.slice(-24).map((t: any) => <div key={t.id} title={`${day(t.date)}: ${Math.round(t.accuracy)}%`} className="flex-1 bg-lamp" style={{ height: `${Math.max(3, t.accuracy)}%`, maxWidth: 36 }} />)}</div> : <p className="text-fog">{tr('Each session adds a column here.')}</p>}
-              {d.weakTopics.length > 0 && <div className="mt-6"><h2 className="mb-1 font-dot text-xl">{tr('Worth revising')}</h2><p className="text-fog">{d.weakTopics.map((t: any) => tr(t.topic)).join(', ')}</p><Link to="/student/prepare" className="nbtn-line mt-3">{tr('Prepare')}</Link></div>}
-            </section>
+            <div className="space-y-5">
+              <section className="npanel p-6">
+                <h2 className="mb-5 text-lg font-bold">{tr('Accuracy of each session')}</h2>
+                {d.timeline.length ? <div className="grid grid-cols-[34px_1fr] gap-2"><div className="flex h-40 flex-col justify-between text-right text-xs text-fog" aria-hidden="true"><span>100%</span><span>50%</span><span>0</span></div><div className="relative flex h-40 items-end gap-1.5 border-b border-white/15 before:absolute before:inset-x-0 before:top-1/2 before:border-t before:border-dashed before:border-white/10" role="img" aria-label={tr('Accuracy of each session')}>{d.timeline.slice(-16).map((t: any) => <div key={t.id} title={`${day(t.date)}: ${Math.round(t.accuracy)}%`} className="relative max-w-9 flex-1 rounded-t-md bg-lamp transition hover:bg-[#f3c069]" style={{ height: `${Math.max(3, t.accuracy)}%` }} />)}</div></div> : <p className="text-fog">{tr('Each session adds a column here.')}</p>}
+              </section>
+              <section className="npanel p-6">
+                <h2 className="mb-2 text-lg font-bold">{tr('Worth revising')}</h2>
+                {d.weakTopics.length > 0 ? <p className="text-fog">{d.weakTopics.map((t: any) => tr(t.topic)).join(', ')}</p> : <p className="text-fog">{tr('No weak topics right now.')}</p>}
+                <Link to="/student/prepare" className="nbtn-line mt-4"><BookOpen size={17} />{tr('Prepare')}</Link>
+              </section>
+            </div>
           </div>
         </>
       )}
@@ -225,13 +252,14 @@ export function MySettings() {
   const save = useMutation({ mutationFn: () => post<any>('/auth/change-password', f), onSuccess: async (r) => { setF({ currentPassword: '', newPassword: '' }); await startSession(r.accessToken); } });
   return (
     <>
-      <h1 className="font-dot text-3xl">{tr('Settings')}</h1>
+      <h1 className="ntitle">{tr('Settings')}</h1>
       <p className="mt-1 text-fog">{me.firstName} {me.lastName}{me.email ? `, ${me.email}` : ''}</p>
-      <section className="npanel mt-6 p-5"><h2 className="mb-1 font-dot text-xl">{tr('Language')}</h2><p className="mb-4 text-fog">{tr('The panel, the game and the official questions change together.')}</p><LanguagePicker dark /></section>
-      {me.email && <div className="mt-5 max-w-md text-ink"><GoogleLink /></div>}
+      <div className="mt-6 grid items-start gap-5 lg:grid-cols-2">
+      <section className="npanel p-6"><h2 className="mb-1 text-lg font-bold">{tr('Language')}</h2><p className="mb-4 text-fog">{tr('The panel, the game and the official questions change together.')}</p><LanguagePicker dark /></section>
+      {me.email && <div className="text-ink empty:hidden"><GoogleLink /></div>}
       {me.email ? (
-        <form className="npanel mt-5 max-w-md space-y-3 p-5" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
-          <h2 className="font-dot text-xl">{tr('Password')}</h2>
+        <form className="npanel space-y-3 p-6" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+          <h2 className="text-lg font-bold">{tr('Password')}</h2>
           <input className="nfield" type="password" aria-label={tr('Current password')} placeholder={tr('Current password')} autoComplete="current-password" required value={f.currentPassword} onChange={(e) => setF({ ...f, currentPassword: e.target.value })} />
           <input className="nfield" type="password" aria-label={tr('New password')} placeholder={tr('New password')} autoComplete="new-password" required minLength={8} value={f.newPassword} onChange={(e) => setF({ ...f, newPassword: e.target.value })} />
           {save.error && <p className="text-[#f09a86]" role="alert">{errorText(save.error)}</p>}
@@ -239,8 +267,9 @@ export function MySettings() {
           <button className="nbtn-line" disabled={save.isPending}>{tr('Change password')}</button>
         </form>
       ) : (
-        <section className="npanel mt-5 max-w-md p-5"><h2 className="mb-1 font-dot text-xl">{tr('Add an e-mail')}</h2><p className="mb-4 text-fog">{tr('You play with a code. Register with the same personal code to also sign in with an e-mail. Your results stay.')}</p><Link className="nbtn-line" to="/register" onClick={() => signOut()}>{tr('Create account')}</Link></section>
+        <section className="npanel p-6"><h2 className="mb-1 text-lg font-bold">{tr('Add an e-mail')}</h2><p className="mb-4 text-fog">{tr('You play with a code. Register with the same personal code to also sign in with an e-mail. Your results stay.')}</p><Link className="nbtn-line" to="/register" onClick={() => signOut()}>{tr('Create account')}</Link></section>
       )}
+      </div>
     </>
   );
 }

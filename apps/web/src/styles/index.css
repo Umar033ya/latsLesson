@@ -51,10 +51,11 @@
   .reg tbody tr:last-child td { @apply border-b-0; }
   .reg tbody tr:hover td { @apply bg-well; }
   .tag { @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold; }
-  .night { @apply min-h-screen bg-night text-bone; }
-  .nbtn { @apply inline-flex items-center justify-center gap-2 bg-lamp px-5 py-2.5 font-dot text-lg text-night transition-colors hover:bg-[#f6dd96] disabled:opacity-50; }
-  .nbtn-line { @apply inline-flex items-center justify-center gap-2 border border-night-4 px-4 py-2 font-dot text-fog transition-colors hover:border-lamp hover:text-bone disabled:opacity-50; }
-  .nfield { @apply w-full border border-night-4 bg-night-2 px-3 py-2.5 text-bone placeholder:text-[#6d7f92] focus:border-lamp focus:outline-none; }
-  .npanel { @apply border border-night-4 bg-night-2; }
+  .night { @apply min-h-screen bg-night text-bone; background-image: radial-gradient(1200px 520px at 70% -120px, #22305266, transparent), radial-gradient(800px 420px at -10% 10%, #5a3d1433, transparent); }
+  .nbtn { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-lamp px-5 py-2.5 text-[15px] font-bold text-night shadow-[0_10px_30px_-12px_#e0a848] transition hover:-translate-y-px hover:bg-[#f3c069] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none; }
+  .nbtn-line { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-[15px] font-semibold text-bone transition hover:border-lamp/60 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50; }
+  .nfield { @apply w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-bone transition placeholder:text-fog/40 focus:border-lamp focus:outline-none focus:ring-4 focus:ring-lamp/15; }
+  .npanel { @apply rounded-2xl border border-white/10 bg-night-2/80 backdrop-blur; }
+  .ntitle { @apply text-balance text-[30px] font-bold leading-tight tracking-[-0.01em] text-bone; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

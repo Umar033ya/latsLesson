@@ -54,12 +54,12 @@ export function JoinRoom() {
   });
   return (
     <Scene>
-      <form className="npanel p-6" onSubmit={(e: FormEvent) => { e.preventDefault(); join.mutate(); }}>
-        <h1 className="mb-5 font-dot text-3xl">{tr('Join a room')}</h1>
+      <form className="npanel p-7 shadow-[0_24px_80px_-20px_#000]" onSubmit={(e: FormEvent) => { e.preventDefault(); join.mutate(); }}>
+        <h1 className="ntitle mb-5">{tr('Join a room')}</h1>
         <label className="mb-2 block text-fog" htmlFor="room-code">{tr('Six digits from the teacher’s screen')}</label>
         <input id="room-code" className="nfield text-center font-dot text-4xl tracking-[0.2em]" inputMode="numeric" autoComplete="off" autoFocus={!code} required maxLength={9} placeholder="000 000" value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d\s-]/g, ''))} />
         <label className="mb-2 mt-5 block text-fog" htmlFor="room-name">{tr('Your name in the game')}</label>
-        <input id="room-name" className="nfield font-dot text-2xl" required minLength={2} maxLength={18} autoComplete="nickname" autoFocus={Boolean(code)} value={nickname} onChange={(e) => setName(e.target.value)} />
+        <input id="room-name" className="nfield text-xl font-semibold" required minLength={2} maxLength={18} autoComplete="nickname" autoFocus={Boolean(code)} value={nickname} onChange={(e) => setName(e.target.value)} />
         {join.error && <p className="mt-4 text-[#f09a86]" role="alert">{errorText(join.error)}</p>}
         <button className="nbtn mt-6 w-full" disabled={join.isPending || !ready || !isRoomCode(code)}>{join.isPending ? tr('Entering...') : tr('Enter the room')}</button>
         {student && <p className="mt-4 text-sm text-fog">{tr('You are signed in: in a room of your center the result is saved in your profile.')}</p>}
@@ -113,16 +113,16 @@ export function RoomPlayer() {
 
   return (
     <Scene wide>
-      <div className="npanel p-5 sm:p-7">
+      <div className="npanel p-6 shadow-[0_24px_80px_-20px_#000] sm:p-8">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-          <div><p className="text-sm text-fog">{room.center}. {room.host}</p><h1 className="font-dot text-3xl">{room.title}</h1></div>
+          <div><p className="text-sm text-fog">{room.center}. {room.host}</p><h1 className="ntitle">{room.title}</h1></div>
           <p className="font-dot text-2xl text-lamp">{spaced(room.code)}</p>
         </div>
         {room.status === 'WAITING' && (
           <>
             <p className="mb-4 text-fog" role="status">{tr('You are in. The game opens by itself when the teacher starts it.')}</p>
             <ul className="flex flex-wrap gap-2">
-              {room.standings.map((s) => <li key={s.id} className={`flex items-center gap-2 border px-3 py-1.5 font-dot text-lg ${s.id === room.me.id ? 'border-lamp' : 'border-night-4'}`}><Dot color={s.color} />{s.nickname}{s.id === room.me.id && <span className="text-sm text-lamp">{tr('you')}</span>}</li>)}
+              {room.standings.map((s) => <li key={s.id} className={`flex items-center gap-2 rounded-full border px-4 py-2 font-semibold ${s.id === room.me.id ? 'border-lamp bg-lamp/10' : 'border-white/15 bg-white/5'}`}><Dot color={s.color} />{s.nickname}{s.id === room.me.id && <span className="text-sm text-lamp">{tr('you')}</span>}</li>)}
             </ul>
           </>
         )}
