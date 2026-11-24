@@ -1,0 +1,365 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap');
+
+:root {
+    font-family: 'Space Grotesk', sans-serif;
+    color: #dfe7de;
+    background: #070a0f
+}
+
+* {
+    box-sizing: border-box
+}
+
+body {
+    margin: 0;
+    background: #070a0f
+}
+
+button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer
+}
+
+#app {
+    min-height: 100vh
+}
+
+.screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: radial-gradient(circle at 50% 45%, #172329, #0b1016 38%, #070a0f 78%)
+}
+
+.grain {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: .08;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")
+}
+
+.hero {
+    width: min(620px, 88vw)
+}
+
+.eyebrow {
+    font: 11px 'DM Mono', monospace;
+    letter-spacing: .18em;
+    color: #d18668;
+    margin: 0 0 20px
+}
+
+.hero h1 {
+    font-size: clamp(72px, 13vw, 150px);
+    line-height: .78;
+    letter-spacing: -.09em;
+    margin: 0
+}
+
+.hero h1 span {
+    color: #d18668
+}
+
+.tagline {
+    font: 16px 'DM Mono', monospace;
+    color: #8d9b96;
+    margin: 35px 0 55px
+}
+
+.btn {
+    border: 1px solid #42515b;
+    background: #111920;
+    padding: 15px 22px;
+    letter-spacing: .08em;
+    font: 12px 'DM Mono', monospace;
+    transition: .2s
+}
+
+.btn:hover {
+    background: #d18668;
+    color: #151014;
+    border-color: #d18668
+}
+
+.primary {
+    background: #b85f50;
+    border-color: #d18668;
+    color: #160f11
+}
+
+.resume {
+    font: 10px 'DM Mono', monospace;
+    color: #65746f;
+    display: inline;
+    margin-left: 20px
+}
+
+.lore {
+    position: absolute;
+    right: 7vw;
+    bottom: 7vh;
+    max-width: 230px;
+    border-left: 1px solid #3c504c;
+    padding-left: 20px;
+    color: #85958e;
+    font: 13px/1.7 'DM Mono', monospace
+}
+
+.lore small {
+    font-size: 9px;
+    color: #53625f
+}
+
+.panel {
+    width: min(780px, 90vw);
+    padding: 45px;
+    background: #0b1016e8;
+    border: 1px solid #2d3b40;
+    box-shadow: 0 25px 100px #0008
+}
+
+.panel h2 {
+    font-size: clamp(28px, 5vw, 52px);
+    line-height: 1.04;
+    letter-spacing: -.05em;
+    font-weight: 500;
+    margin: 0 0 35px
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 25px
+}
+
+.card,
+.level {
+    background: #111920;
+    border: 1px solid #2e3d41;
+    text-align: left;
+    padding: 22px;
+    transition: .2s
+}
+
+.card:hover,
+.card.selected,
+.level:hover,
+.level.selected {
+    border-color: #d18668;
+    background: #1d2426
+}
+
+.card i,
+.level i {
+    display: block;
+    font: 11px 'DM Mono', monospace;
+    color: #d18668;
+    margin-bottom: 35px;
+    font-style: normal
+}
+
+.card strong,
+.level strong {
+    display: block;
+    font-size: 20px
+}
+
+.card small,
+.level small {
+    display: block;
+    color: #7e8e88;
+    font: 11px 'DM Mono', monospace;
+    margin-top: 8px
+}
+
+.levels {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 25px
+}
+
+.level {
+    display: grid;
+    grid-template-columns: 36px 150px 1fr;
+    padding: 16px;
+    align-items: center
+}
+
+.level i {
+    margin: 0
+}
+
+.level strong {
+    font-size: 15px
+}
+
+.text {
+    display: block;
+    border: 0;
+    background: none;
+    color: #73837d;
+    font: 11px 'DM Mono', monospace;
+    margin: 22px auto
+}
+
+.result {
+    text-align: center;
+    max-width: 620px
+}
+
+.mark {
+    font-size: 72px;
+    color: #d18668
+}
+
+.mark.ok {
+    color: #9fbf9f
+}
+
+.result p {
+    color: #91a09a;
+    line-height: 1.6
+}
+
+.score {
+    border-block: 1px solid #304044;
+    padding: 18px;
+    margin: 25px 0;
+    font: 10px 'DM Mono', monospace;
+    color: #71817b
+}
+
+.score b {
+    display: block;
+    font-size: 42px;
+    color: #d18668
+}
+
+.score small {
+    font-size: 16px
+}
+
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #05080dcc;
+    padding: 20px
+}
+
+.question {
+    width: min(600px, 100%);
+    background: #10181c;
+    border: 1px solid #d18668;
+    padding: 35px;
+    box-shadow: 0 0 70px #000
+}
+
+.question h2 {
+    font-size: 27px;
+    line-height: 1.2;
+    font-weight: 500
+}
+
+.answers {
+    display: grid;
+    gap: 8px
+}
+
+.answers button {
+    background: #172328;
+    border: 1px solid #34474b;
+    padding: 14px;
+    text-align: left;
+    font: 14px 'DM Mono', monospace
+}
+
+.answers button:hover {
+    border-color: #d18668
+}
+
+.answers b {
+    color: #d18668;
+    display: inline-block;
+    width: 26px
+}
+
+.question small {
+    display: block;
+    color: #758680;
+    margin-top: 22px;
+    font: 10px 'DM Mono', monospace
+}
+
+#game {
+    min-height: 100vh;
+    background: #05080b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative
+}
+
+#game canvas {
+    max-width: 100%;
+    max-height: 100vh;
+    image-rendering: pixelated
+}
+
+#hud {
+    position: fixed;
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(860px, 90vw);
+    display: flex;
+    justify-content: space-between;
+    z-index: 10;
+    font: 10px 'DM Mono', monospace;
+    color: #9eaaa2;
+    pointer-events: none
+}
+
+#hud b {
+    color: #d18668;
+    font-weight: 400
+}
+
+@media(max-width:600px) {
+    .lore {
+        display: none
+    }
+
+    .hero {
+        padding: 10vw
+    }
+
+    .cards {
+        grid-template-columns: 1fr
+    }
+
+    .panel {
+        padding: 28px
+    }
+
+    .level {
+        grid-template-columns: 30px 1fr
+    }
+
+    .level small {
+        grid-column: 2
+    }
+
+    .resume {
+        display: block;
+        margin: 18px 0 0
+    }
+}
