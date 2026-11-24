@@ -1,1 +1,86 @@
-[{"id":"math-01","subject":"mathematics","difficulty":"intro","prompt":"A classroom has 3 rows of 4 desks. How many desks are there?","choices":["7","12","14","16"],"answer":1,"hint":"Multiply rows by desks."},{"id":"math-02","subject":"mathematics","difficulty":"standard","prompt":"What is 18 ÷ 3 + 4?","choices":["6","10","12","14"],"answer":1,"hint":"Divide before adding."},{"id":"math-03","subject":"mathematics","difficulty":"nightmare","prompt":"What is 7² − 9?","choices":["32","40","49","58"],"answer":1,"hint":"Square 7, then subtract 9."},{"id":"eng-01","subject":"english","difficulty":"intro","prompt":"Choose the opposite of ‘silent’.","choices":["quiet","still","noisy","empty"],"answer":2,"hint":"Think of a corridor full of sound."},{"id":"eng-02","subject":"english","difficulty":"standard","prompt":"Which sentence uses ‘their’ correctly?","choices":["Their footsteps echoed.","Put it over their.","Their going to run.","Theirs footsteps echoed."],"answer":0,"hint":"Their shows possession."},{"id":"eng-03","subject":"english","difficulty":"nightmare","prompt":"What does ‘unnervingly’ describe in ‘The corridor was unnervingly still’?","choices":["A disturbing feeling","A bright place","Someone laughing","An open door"],"answer":0,"hint":"Look for the feeling hidden in the adverb."}]
+[
+    {
+        "id": "math-01",
+        "subject": "mathematics",
+        "difficulty": "intro",
+        "prompt": "A classroom has 3 rows of 4 desks. How many desks are there?",
+        "choices": [
+            "7",
+            "12",
+            "14",
+            "16"
+        ],
+        "answer": 1,
+        "hint": "Multiply rows by desks."
+    },
+    {
+        "id": "math-02",
+        "subject": "mathematics",
+        "difficulty": "standard",
+        "prompt": "What is 18 ÷ 3 + 4?",
+        "choices": [
+            "6",
+            "10",
+            "12",
+            "14"
+        ],
+        "answer": 1,
+        "hint": "Divide before adding."
+    },
+    {
+        "id": "math-03",
+        "subject": "mathematics",
+        "difficulty": "nightmare",
+        "prompt": "What is 7² − 9?",
+        "choices": [
+            "32",
+            "40",
+            "49",
+            "58"
+        ],
+        "answer": 1,
+        "hint": "Square 7, then subtract 9."
+    },
+    {
+        "id": "eng-01",
+        "subject": "english",
+        "difficulty": "intro",
+        "prompt": "Choose the opposite of ‘silent’.",
+        "choices": [
+            "quiet",
+            "still",
+            "noisy",
+            "empty"
+        ],
+        "answer": 2,
+        "hint": "Think of a corridor full of sound."
+    },
+    {
+        "id": "eng-02",
+        "subject": "english",
+        "difficulty": "standard",
+        "prompt": "Which sentence uses ‘their’ correctly?",
+        "choices": [
+            "Their footsteps echoed.",
+            "Put it over their.",
+            "Their going to run.",
+            "Theirs footsteps echoed."
+        ],
+        "answer": 0,
+        "hint": "Their shows possession."
+    },
+    {
+        "id": "eng-03",
+        "subject": "english",
+        "difficulty": "nightmare",
+        "prompt": "What does ‘unnervingly’ describe in ‘The corridor was unnervingly still’?",
+        "choices": [
+            "A disturbing feeling",
+            "A bright place",
+            "Someone laughing",
+            "An open door"
+        ],
+        "answer": 0,
+        "hint": "Look for the feeling hidden in the adverb."
+    }
+]
