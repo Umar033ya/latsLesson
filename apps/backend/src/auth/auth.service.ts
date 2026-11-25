@@ -94,6 +94,7 @@ export class AuthService {
       const membership = student && (await this.prisma.membership.findUnique({ where: { userId_organizationId: { userId: student.id, organizationId: org.id } } }));
       if (!student || !membership || student.status !== 'ACTIVE' || membership.status !== 'ACTIVE') throw new ApiException('ACCESS_DISABLED', 'Your access has been turned off. Ask your teacher.', 403);
       if (membership.accessExpiresAt && membership.accessExpiresAt < new Date()) throw new ApiException('ACCESS_EXPIRED', 'Your access has expired. Ask your teacher.', 403);
+      if (!input.firstName) return { needsAccount: true as const, hasAccount: Boolean(student.email), center, student: { firstName: student.firstName, lastName: student.lastName } };
       await this.prisma.$transaction([
         this.prisma.invitationCode.update({ where: { id: code.id }, data: { usesCount: { increment: 1 }, lastUsedAt: new Date() } }),
         this.prisma.membership.update({ where: { id: membership.id }, data: { lastActiveAt: new Date() } }),
@@ -146,7 +147,10 @@ export class AuthService {
    * student it belongs to. The role is never taken from the request.
    */
   async register(input: RegisterInput, ip: string): Promise<Session> {
-    if (!(await this.access.platform()).studentSignup) throw new ApiException('REGISTRATION_CLOSED', 'Registration is closed. Enter with your access code instead.', 403);
+    if (!(await this.access.platform()).studentSignup) {
+      const code = await this.redemption.validateCode(input.invitationCode);
+      if (code.kind !== 'PERSONAL') throw new ApiException('REGISTRATION_CLOSED', 'Registration is closed. Enter with your access code instead.', 403);
+    }
     return this.joinWithCode(input.invitationCode, { email: input.email, passwordHash: await hashPassword(input.password), firstName: input.firstName, lastName: input.lastName, locale: input.locale }, ip);
   }
 

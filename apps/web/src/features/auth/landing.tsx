@@ -3,16 +3,19 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { LanguageSwitch } from '../../components/Preferences';
 import { copy } from '../../components/ui';
 import { homeOf, post, startSession, useAuth } from '../../lib/api';
-import { errorText, tr } from '../../lib/i18n';
+import { errorText, getLanguage, tr } from '../../lib/i18n';
 import { isRoomCode } from '../../lib/room';
 import { useEnter } from './enter';
 
 interface CodeReply {
   accessToken?: string;
   needsProfile?: boolean;
+  needsAccount?: boolean;
+  hasAccount?: boolean;
   personalCode?: string | null;
   center?: { name: string; logoUrl: string | null; accent: string };
   group?: string | null;
+  student?: { firstName: string; lastName: string };
 }
 
 const GAME_URL = import.meta.env.DEV ? 'http://localhost:5174/' : '/play/';
@@ -146,12 +149,28 @@ function CodeCard() {
   const [code, setCode] = useState(params.get('code') ?? '');
   const [profile, setProfile] = useState<CodeReply | null>(null);
   const [name, setName] = useState({ first: '', last: '' });
+  const [account, setAccount] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [personal, setPersonal] = useState<string | null>(null);
   const me = useAuth((s) => s.me);
   const nav = useNavigate();
   const enter = useEnter();
+  const setupStudentAccount = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!profile?.student) return;
+    setError('');
+    setBusy(true);
+    try {
+      const r = profile.hasAccount
+        ? await post<{ accessToken: string }>('/auth/login', account)
+        : await post<{ accessToken: string }>('/auth/register', { email: account.email, password: account.password, firstName: profile.student.firstName, lastName: profile.student.lastName, invitationCode: code, locale: getLanguage() });
+      await enter(r.accessToken);
+    } catch (err) {
+      setError(errorText(err));
+      setBusy(false);
+    }
+  };
   if (me?.role === 'GAMER' && !personal && !busy) return <Navigate to="/student" replace />;
 
   const submit = async (e: FormEvent) => {
@@ -160,8 +179,8 @@ function CodeCard() {
     setError('');
     setBusy(true);
     try {
-      const r = await post<CodeReply>('/auth/code', { code, ...(profile ? { firstName: name.first, lastName: name.last } : {}) });
-      if (r.needsProfile) setProfile(r);
+      const r = await post<CodeReply>('/auth/code', { code, ...(profile && !profile.needsAccount ? { firstName: name.first, lastName: name.last } : {}) });
+      if (r.needsProfile || r.needsAccount) setProfile(r);
       else if (r.personalCode) {
         setPersonal(r.personalCode);
         await startSession(r.accessToken!);
@@ -183,12 +202,20 @@ function CodeCard() {
       </div>
     );
   return (
-    <form onSubmit={submit} className="pass">
+    <form onSubmit={profile?.needsAccount ? setupStudentAccount : submit} className="pass">
       {!profile ? (
         <>
           <h2 className="pass-title">{tr('Pass')}</h2>
           <label htmlFor="code" className="mt-2 block text-[#5a4c55]">{tr('Access code from your education center, or six digits of a room')}</label>
           <input id="code" className="pass-field text-center font-dot text-3xl uppercase tracking-wider" placeholder="LL-XXXX-XXXX" autoComplete="off" spellCheck={false} maxLength={20} value={code} onChange={(e) => setCode(e.target.value)} required minLength={6} />
+        </>
+      ) : profile.needsAccount ? (
+        <>
+          <h2 className="pass-title">{profile.center?.name}</h2>
+          <p className="mt-2 text-[#5a4c55]">{profile.student ? `${profile.student.firstName} ${profile.student.lastName}`.trim() : ''}</p>
+          <p className="mt-1 text-[#5a4c55]">{tr(profile.hasAccount ? 'Sign in with your student account.' : 'Create your student account to continue.')}</p>
+          <input aria-label={tr('E-mail')} className="pass-field mt-4" type="email" autoComplete="username" placeholder={tr('E-mail')} required value={account.email} onChange={(e) => setAccount({ ...account, email: e.target.value })} />
+          <input aria-label={tr('Password')} className="pass-field mt-3" type="password" autoComplete={profile.hasAccount ? 'current-password' : 'new-password'} minLength={profile.hasAccount ? 1 : 8} maxLength={128} placeholder={tr('Password')} required value={account.password} onChange={(e) => setAccount({ ...account, password: e.target.value })} />
         </>
       ) : (
         <>
@@ -199,7 +226,7 @@ function CodeCard() {
         </>
       )}
       {error && <p className="mt-3 font-semibold text-[#9d2230]" role="alert">{error}</p>}
-      <button className="pass-btn mt-5" disabled={busy}>{busy ? tr('Checking...') : profile ? tr('Sign the register') : tr('Enter')}</button>
+      <button className="pass-btn mt-5" disabled={busy}>{busy ? (profile?.needsAccount ? tr('Signing in...') : tr('Checking...')) : profile?.needsAccount ? tr(profile.hasAccount ? 'Sign in' : 'Create account') : profile ? tr('Sign the register') : tr('Enter')}</button>
       <p className="mt-4 flex flex-wrap justify-between gap-x-6 gap-y-2">
         {profile ? (
           <button type="button" className="pass-link" onClick={() => setProfile(null)}>{tr('Use another code')}</button>
