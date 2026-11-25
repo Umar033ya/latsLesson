@@ -63,7 +63,7 @@ export function titleScreen(opts: { session: GameSession | null; error?: string;
     };
     const open = (path: string) => () => location.assign(site(path));
     const chooseDemo = () => {
-      let close = () => undefined;
+      let close: () => void = () => {};
       const pick = (subject: 'mathematics' | 'english') => { close(); go({ guestSubject: subject }); };
       const body = el('div', { class: 'grid gap-3' },
         el('p', { class: 'mb-2 text-9 leading-snug text-fog' }, tr('Choose what you want to practise. The demo will ask easy questions in that subject.')),

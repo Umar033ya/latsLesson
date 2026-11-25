@@ -961,6 +961,7 @@ const dictionary: Record<string, string> = {
   "Sign in with your student account.": "O‘quvchi akkauntingiz bilan kiring.",
   "Create your student account to continue.": "Davom etish uchun o‘quvchi akkauntini yarating.",
   "Create account": "Akkaunt yaratish",
+  "Campaign and subject": "Kampaniya va fan",
   "The school is locked. Every door opens with a right answer.": "Maktab qulflangan. Har bir eshikni to‘g‘ri javob ochadi.",
   "Each room first teaches: a short lesson, an example, then the question.": "Xona avval o‘rgatadi: qisqa dars, misol, keyin savol.",
   "Answers open doors. A mistake brings a hint and an explanation.": "Javoblar eshiklarni ochadi. Xatodan keyin maslahat va tushuntirish beriladi.",

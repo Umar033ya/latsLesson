@@ -61,12 +61,24 @@ export class LobbiesService {
     const organizationId = hostOrg(actor, requested);
     const org = await this.access.org(organizationId);
     const items = await this.prisma.campaign.findMany({ where: this.playable(organizationId, this.access.settings(org).allowOfficialCampaigns), orderBy: [{ organizationId: 'desc' }, { title: 'asc' }] });
+    const configs = items.map((campaign) => this.campaigns.config(campaign));
+    const subjectIds = [...new Set(configs.flatMap((config) => config.source.subjectIds))];
+    const topicIds = [...new Set(configs.flatMap((config) => config.source.topicIds))];
+    const [subjects, topics] = await Promise.all([
+      subjectIds.length ? this.prisma.subject.findMany({ where: { id: { in: subjectIds } }, select: { id: true, name: true } }) : [],
+      topicIds.length ? this.prisma.topic.findMany({ where: { id: { in: topicIds } }, select: { id: true, subject: { select: { name: true } } } }) : [],
+    ]);
+    const subjectNames = new Map(subjects.map((subject) => [subject.id, subject.name]));
     return Promise.all(
-      items.map(async (c) => {
-        const config = this.campaigns.config(c);
+      items.map(async (c, index) => {
+        const config = configs[index];
         const gameplay = await this.access.gameplay(org, config.gameplay);
         const tr = (c.translations as Record<string, { title?: string; description?: string }>)?.[locale];
-        return { id: c.id, title: tr?.title || c.title, description: tr?.description || c.description, official: c.organizationId === null, difficulty: config.difficulty, sessionMinutes: gameplay.sessionMinutes, tension: gameplay.tension };
+        const campaignSubjectNames = [...new Set([
+          ...config.source.subjectIds.map((id) => subjectNames.get(id)).filter((name): name is string => Boolean(name)),
+          ...topics.filter((topic) => config.source.topicIds.includes(topic.id)).map((topic) => topic.subject.name),
+        ])];
+        return { id: c.id, title: tr?.title || c.title, description: tr?.description || c.description, subjects: campaignSubjectNames, official: c.organizationId === null, difficulty: config.difficulty, sessionMinutes: gameplay.sessionMinutes, tension: gameplay.tension };
       }),
     );
   }

@@ -16,6 +16,7 @@ const POLL_MS = 1500;
 interface CampaignChoice {
   id: string;
   title: string;
+  subjects: string[];
   description: string | null;
   official: boolean;
   difficulty: string;
@@ -98,7 +99,7 @@ function NewRoom({ onClose }: { onClose: () => void }) {
         {(list) =>
           list.length ? (
             <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); create.mutate(undefined as never); }}>
-              <Choice label={tr('Campaign')} value={campaignId} options={list.map((c) => [c.id, c.title])} hint={chosen && tr('Up to {0} minutes. Everybody gets the same questions.', { 0: chosen.sessionMinutes })} onChange={(e) => setF({ ...f, campaignId: e.target.value })} />
+              <Choice label={tr('Campaign and subject')} value={campaignId} options={list.map((c) => [c.id, `${c.title} · ${c.subjects.length ? c.subjects.join(', ') : tr('All subjects')}`])} hint={chosen && `${chosen.subjects.length ? chosen.subjects.join(', ') : tr('All subjects')} · ${tr('Up to {0} minutes. Everybody gets the same questions.', { 0: chosen.sessionMinutes })}`} onChange={(e) => setF({ ...f, campaignId: e.target.value })} />
               <Text label={tr('Room name')} placeholder={chosen?.title} maxLength={60} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
               <Text label={tr('How many players at most')} type="number" min={1} max={30} value={f.maxPlayers} onChange={(e) => setF({ ...f, maxPlayers: Number(e.target.value) })} />
               <button className="btn-main w-full py-2.5" disabled={create.isPending}>{tr('Open the room')}</button>

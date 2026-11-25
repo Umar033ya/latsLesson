@@ -328,11 +328,6 @@ export class School extends Phaser.Scene {
     return this.minds().some((m) => m.state === 'CHASE');
   }
 
-  /** The first rooms are for learning. He starts his rounds after the library. */
-  private huntStarted() {
-    return this.has('seen') && (this.has('reward:catalogue') || this.game_.tension === 'TENSE');
-  }
-
   private roomReachable(room: string) {
     if (room === 'hall') return true;
     return DOORS.some((d) => (d.leads === room || (room === 'back' && d.id.startsWith('b_'))) && this.grid.doorOpen(d.id)) && (room !== 'back' || this.grid.doorOpen('b_boiler') || this.grid.doorOpen('d_maths') || this.grid.doorOpen('d_gym'));

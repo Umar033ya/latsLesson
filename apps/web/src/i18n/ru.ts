@@ -961,6 +961,7 @@ const dictionary: Record<string, string> = {
   "Sign in with your student account.": "Войдите в аккаунт ученика.",
   "Create your student account to continue.": "Создайте аккаунт ученика, чтобы продолжить.",
   "Create account": "Создать аккаунт",
+  "Campaign and subject": "Кампания и предмет",
   "The school is locked. Every door opens with a right answer.": "Школа заперта. Каждую дверь открывает верный ответ.",
   "Each room first teaches: a short lesson, an example, then the question.": "Сначала комната учит: короткий урок, пример, и только потом вопрос.",
   "Answers open doors. A mistake brings a hint and an explanation.": "Ответы открывают двери. За ошибкой идёт подсказка и объяснение.",

@@ -39,9 +39,9 @@ export interface Tuning {
 }
 
 export const TUNING: Record<Tension, Tuning> = {
-  CALM: { patrol: 26, alert: 36, chase: 56, sightLit: 86, sightDark: 34, hearing: 0.7, memory: 1.6, searchTime: 4, catchRange: 10 },
-  STANDARD: { patrol: 32, alert: 46, chase: 76, sightLit: 124, sightDark: 44, hearing: 1, memory: 2.6, searchTime: 7, catchRange: 11 },
-  TENSE: { patrol: 38, alert: 56, chase: 88, sightLit: 150, sightDark: 54, hearing: 1.25, memory: 3.4, searchTime: 10, catchRange: 12 },
+  CALM: { patrol: 36, alert: 50, chase: 72, sightLit: 86, sightDark: 34, hearing: 1.25, memory: 2.2, searchTime: 4, catchRange: 10 },
+  STANDARD: { patrol: 44, alert: 62, chase: 90, sightLit: 124, sightDark: 44, hearing: 1.8, memory: 3.2, searchTime: 7, catchRange: 11 },
+  TENSE: { patrol: 52, alert: 72, chase: 98, sightLit: 150, sightDark: 54, hearing: 2.3, memory: 4.2, searchTime: 10, catchRange: 12 },
 };
 
 export interface AiEvents {
