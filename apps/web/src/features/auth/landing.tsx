@@ -40,9 +40,9 @@ export function CodePage() {
             )}
           </nav>
         </header>
-        <div className="grid flex-1 items-end gap-x-16 gap-y-8 px-5 pb-10 sm:px-10 lg:grid-cols-[minmax(0,1fr)_420px] lg:pb-10">
+        <div className="grid flex-1 items-end gap-x-8 gap-y-8 lg:gap-x-16 px-5 pb-10 sm:px-10 md:grid-cols-[minmax(0,1fr)_360px] md:pb-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:pb-10">
           <div>
-            <h1 className="font-jac text-[clamp(64px,11vw,168px)] leading-[0.82] text-bone [text-shadow:0_6px_0_#0a0c13]">Last Lesson</h1>
+            <h1 className="font-jac text-[clamp(64px,10.5vw,168px)] leading-[0.82] text-bone [text-shadow:0_6px_0_#0a0c13]">Last Lesson</h1>
             <p className="mt-5 max-w-[34ch] text-[clamp(19px,2vw,26px)] leading-snug text-bone [text-shadow:0_2px_0_#0a0c13]">{tr('The school is locked. Every door opens with a right answer.')}</p>
           </div>
           <CodeCard />

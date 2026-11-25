@@ -16,13 +16,7 @@ One Vercel project serves everything from one origin: panels at `/`, the game at
 | `AI_PROVIDER`, `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` | optional |
 
 4. **Deploy.** Production builds run `prisma migrate deploy`.
-5. **Seed once** from your machine, with the Neon variables and a strong password in the environment:
-
-```bash
-NODE_ENV=production SEED_PASSWORD=... DATABASE_URL=... DATABASE_URL_UNPOOLED=... CODE_PEPPER=... pnpm db:seed
-```
-
-The production seed creates accounts and content but no sample access codes.
+5. **Content and the first administrator.** The first production deploy fills an empty database with the official subjects, questions, lessons, campaigns and levels; later deploys leave them alone. For the platform owner add `SEED_PASSWORD` (strong) to the Vercel project and redeploy: it creates `super@lastlesson.dev` and the sample centers once. Then change the passwords in the panel and remove the variable. Sample access codes are never created in production.
 
 ## Several Vercel projects instead of one
 
