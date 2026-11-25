@@ -1,6 +1,8 @@
 /**
- * Idempotent seed: plans, subjects, the official question bank, learning materials, an official
- * campaign, and two sample centers (two, so tenant isolation can be seen).
+ * Idempotent seed in two parts.
+ * Content: plans, subjects, the official question bank, learning materials, official campaigns and levels.
+ * People: the platform owner and sample centers. In production only when SEED_PASSWORD is set.
+ * In production nothing that already exists is changed, so edits made in the panels survive every deploy.
  */
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -12,13 +14,16 @@ import { EXTRA_QUESTIONS, MATERIALS, type SeedQuestion } from './seed-content';
 import { CAMPAIGN_TEXT, EXTRA_ANSWERS, MATERIAL_TEXT, QUESTION_TEXT } from './seed-translations';
 
 for (const file of ['.env', '../../.env']) if (existsSync(resolve(file))) process.loadEnvFile(resolve(file));
-if (!process.env.CODE_PEPPER) throw new Error('CODE_PEPPER is not set (see .env.example)');
-const password = process.env.SEED_PASSWORD || (process.env.NODE_ENV === 'production' ? '' : 'LastLesson-2026');
-if (!password) throw new Error('SEED_PASSWORD must be set in production');
+const production = process.env.NODE_ENV === 'production';
+if (!production && !process.env.CODE_PEPPER) throw new Error('CODE_PEPPER is not set (see .env.example)');
+const password = process.env.SEED_PASSWORD || (production ? '' : 'LastLesson-2026');
 
 const prisma = new PrismaClient();
 const normalize = (code: string) => code.toUpperCase().replace(/[^A-Z0-9]/g, '');
 const codeHash = (code: string) => createHmac('sha256', process.env.CODE_PEPPER!).update(normalize(code)).digest('hex');
+
+/** Russian and Uzbek names for the titles of levels. */
+const SUBJECT_NAMES: Record<string, [string, string]> = { mathematics: ['Математика', 'Matematika'], english: ['Английский язык', 'Ingliz tili'], biology: ['Биология', 'Biologiya'], physics: ['Физика', 'Fizika'], history: ['История', 'Tarix'] };
 
 const SUBJECTS = [
   {
@@ -194,17 +199,15 @@ async function sampleCode(code: string, data: Omit<Prisma.InvitationCodeUnchecke
 
 async function user(email: string, firstName: string, lastName: string, role: 'SUPER_ADMIN' | 'CENTER_ADMIN') {
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
-  return prisma.user.upsert({ where: { email }, create: { email, passwordHash, firstName, lastName, role }, update: { role, passwordHash, status: 'ACTIVE', failedLogins: 0, lockedUntil: null } });
+  return prisma.user.upsert({ where: { email }, create: { email, passwordHash, firstName, lastName, role }, update: production ? {} : { role, passwordHash, status: 'ACTIVE', failedLogins: 0, lockedUntil: null } });
 }
 
-async function main() {
+async function content() {
   const all: SeedQuestion[] = [...RAW_QUESTIONS, ...EXTRA_QUESTIONS];
   for (const q of all) {
     const issues = validateQuestionContent(q.type, q.options, q.correct);
     if (issues.length) throw new Error(`Invalid seed question "${q.prompt}": ${issues[0].message}`);
   }
-
-  const superAdmin = await user('super@lastlesson.dev', 'Platform', 'Owner', 'SUPER_ADMIN');
 
   const plans = [
     { key: 'trial', name: 'Trial', description: 'Try the platform with one class.', maxStudents: 30, maxGroups: 3, maxCampaigns: 2, maxQuestions: 100, features: { branding: false, customNotes: false, aiPreparation: false }, sortOrder: 0 },
@@ -220,7 +223,7 @@ async function main() {
     const record = await prisma.subject.upsert({
       where: { slug: subject.slug },
       create: { slug: subject.slug, name: subject.name, description: subject.description, icon: subject.icon, color: subject.color },
-      update: { name: subject.name },
+      update: production ? {} : { name: subject.name },
     });
     subjectIds.set(subject.slug, record.id);
     for (const topic of subject.topics) {
@@ -239,22 +242,23 @@ async function main() {
       explanation: q.explanation, hint: q.hint ?? null, points: q.difficulty === 'HARD' ? 20 : q.difficulty === 'MEDIUM' ? 15 : 10, status: 'PUBLISHED' as const, isActive: true,
     };
     const existing = await prisma.question.findFirst({ where: { subjectId, prompt: q.prompt, organizationId: null } });
-    if (existing) await prisma.question.update({ where: { id: existing.id }, data });
-    else await prisma.question.create({ data });
+    if (existing && !production) await prisma.question.update({ where: { id: existing.id }, data });
+    if (!existing) await prisma.question.create({ data });
   }
 
   for (const m of MATERIALS) {
     const subjectId = subjectIds.get(m.subject)!;
     const data = { subjectId, topicId: topicIds.get(`${m.subject}:${m.topic}`) ?? null, title: m.title, body: m.body, examples: m.examples, translations: (MATERIAL_TEXT[m.title] ?? {}) as Prisma.InputJsonValue };
     const existing = await prisma.learningMaterial.findFirst({ where: { title: m.title, organizationId: null } });
-    if (existing) await prisma.learningMaterial.update({ where: { id: existing.id }, data });
-    else await prisma.learningMaterial.create({ data });
+    if (existing && !production) await prisma.learningMaterial.update({ where: { id: existing.id }, data });
+    if (!existing) await prisma.learningMaterial.create({ data });
   }
 
   const campaign = async (title: string, organizationId: string | null, description: string, config: unknown) => {
     const data = { description, config: campaignConfigSchema.parse(config) as unknown as Prisma.InputJsonValue, status: 'PUBLISHED' as const, publishedAt: new Date(), translations: (CAMPAIGN_TEXT[title] ?? {}) as Prisma.InputJsonValue };
     const existing = await prisma.campaign.findFirst({ where: { title, organizationId } });
-    return existing ? prisma.campaign.update({ where: { id: existing.id }, data: { translations: data.translations } }) : prisma.campaign.create({ data: { ...data, title, organizationId } });
+    if (!existing) await prisma.campaign.create({ data: { ...data, title, organizationId } });
+    else if (!production) await prisma.campaign.update({ where: { id: existing.id }, data: { translations: data.translations } });
   };
   const ids = (...slugs: string[]) => slugs.map((s) => subjectIds.get(s)!);
   await campaign('The Last Lesson', null, 'The full story of Room 9-B. Mathematics, English and biology in one night.', {
@@ -270,11 +274,32 @@ async function main() {
     gameplay: { sessionMinutes: 20, tension: 'CALM' },
   });
 
+  // Levels of a subject: one per topic with enough questions (up to four), then the whole subject.
+  for (const subject of SUBJECTS) {
+    const subjectId = subjectIds.get(subject.slug)!;
+    const known = await prisma.campaign.count({ where: { organizationId: null, config: { path: ['level', 'subjectId'], equals: subjectId } } });
+    if (known) continue;
+    const topics = [...subject.topics].sort().filter((t) => all.filter((q) => q.subject === subject.slug && q.topic === t).length >= 4).slice(0, 4).map((t) => topicIds.get(`${subject.slug}:${t}`)!);
+    const steps = [...topics.map((t) => [t]), topics].filter((s) => s.length);
+    const [ru, uz] = SUBJECT_NAMES[subject.slug] ?? [subject.name, subject.name];
+    for (const [i, ids_] of steps.entries()) {
+      const n = i + 1;
+      const config = { level: { subjectId, number: n }, sections: ['classroom', 'library', 'biology', 'lobby'], source: { subjectIds: [subjectId], topicIds: ids_ }, difficulty: n <= 2 ? 'EASY' : n <= 4 ? 'MEDIUM' : 'HARD', gameplay: { sessionMinutes: Math.min(30, 15 + i * 5) } };
+      await prisma.campaign.create({ data: { title: `${subject.name}, level ${n}`, status: 'PUBLISHED', publishedAt: new Date(), config: campaignConfigSchema.parse(config) as unknown as Prisma.InputJsonValue, translations: { ru: { title: `${ru}, уровень ${n}` }, uz: { title: `${uz}, ${n}-daraja` } } } });
+    }
+  }
+  console.log(`Official content: ${all.length} questions, ${MATERIALS.length} materials.`);
+  return planIds;
+}
+
+async function people(planIds: Map<string, string>) {
+  const superAdmin = await user('super@lastlesson.dev', 'Platform', 'Owner', 'SUPER_ADMIN');
+
   const center = async (slug: string, name: string, city: string, plan: string, settings: unknown) =>
     prisma.organization.upsert({
       where: { slug },
       create: { slug, name, city, planId: planIds.get(plan), subscriptionEndsAt: new Date(Date.now() + 365 * 86_400_000), settings: centerSettingsSchema.parse(settings) as unknown as Prisma.InputJsonValue },
-      update: { status: 'ACTIVE' },
+      update: production ? {} : { status: 'ACTIVE' },
     });
   const academy = await center('zarafshon', 'Zarafshon Academy', 'Samarkand', 'center', {
     branding: { displayName: 'Zarafshon Academy', accent: '#d9a441', theme: 'MIDNIGHT' },
@@ -312,18 +337,24 @@ async function main() {
   const sam = await student(academy.id, g9b.id, 'Sam', 'Student');
   for (const [f, l, g] of [['Malika', 'Yusupova', g9a.id], ['Jasur', 'Rahimov', g9a.id], ['Nilufar', 'Aliyeva', g9b.id], ['Bekzod', 'Tursunov', g9b.id]] as const) await student(academy.id, g, f, l);
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (!production) {
     await sampleCode('LL-CLASS-2026', { organizationId: academy.id, groupId: g9b.id, createdById: superAdmin.id, maxUses: 1000, kind: 'GROUP', label: '9-B weekend' });
     await sampleCode('LL-PLAY-2026', { organizationId: academy.id, studentId: sam.id, createdById: superAdmin.id, maxUses: 10000, kind: 'PERSONAL' });
   }
 
-  console.log(`Seeded ${all.length} questions, ${MATERIALS.length} materials, 2 centers.`);
-  if (process.env.NODE_ENV !== 'production') {
+  if (!production) {
     console.log(`Super admin:   super@lastlesson.dev / ${password}`);
     console.log(`Teacher:       teacher@lastlesson.dev / ${password}`);
     console.log(`Center admin:  admin@lastlesson.dev / ${password}  (second center: riverside@lastlesson.dev)`);
     console.log('Student codes: LL-PLAY-2026 (personal), LL-CLASS-2026 (group)');
   }
+}
+
+async function main() {
+  // A deploy finds the content in place and leaves it alone, whatever the panels have made of it since.
+  const filled = production && (await prisma.question.count({ where: { organizationId: null } })) > 0;
+  const plans = filled ? new Map((await prisma.plan.findMany()).map((p) => [p.key, p.id])) : await content();
+  if (password && !(production && (await prisma.user.count({ where: { role: 'SUPER_ADMIN' } })))) await people(plans);
 }
 
 main()

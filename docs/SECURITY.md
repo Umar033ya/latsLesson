@@ -40,6 +40,6 @@
 
 - [ ] Generate new values for `JWT_ACCESS_SECRET`, `GAME_TOKEN_SECRET`, `CODE_PEPPER`.
 - [ ] Set `NODE_ENV=production`, `WEB_ORIGIN`, `GAME_URL`, `TRUST_PROXY=1`, `SWAGGER_ENABLED=false`.
-- [ ] Run the seed with a strong `SEED_PASSWORD` once, then change it in the panel.
+- [ ] Set a strong `SEED_PASSWORD` in Vercel for one deploy (creates `super@lastlesson.dev` and sample centers), change the passwords in the panel, remove the variable. Official content needs no password and is filled in by the first deploy.
 - [ ] Changing `CODE_PEPPER` invalidates every access code: plan it.
 - [ ] Turn on Neon point-in-time restore.

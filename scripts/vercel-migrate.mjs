@@ -1,4 +1,4 @@
-/** Applies migrations on production deploys. Without a database the build still succeeds and says what is missing. */
+/** Applies migrations and fills an empty database with the official content on production deploys. Without a database the build still succeeds and says what is missing. */
 import { execSync } from 'node:child_process';
 
 if (process.env.VERCEL_ENV !== 'production') process.exit(0);
@@ -8,3 +8,4 @@ if (missing.length) {
   process.exit(0);
 }
 execSync('npx prisma migrate deploy --schema prisma/schema.prisma', { stdio: 'inherit', cwd: new URL('..', import.meta.url) });
+execSync('npx tsx prisma/seed.ts', { stdio: 'inherit', cwd: new URL('..', import.meta.url), env: { ...process.env, NODE_ENV: 'production' } });
