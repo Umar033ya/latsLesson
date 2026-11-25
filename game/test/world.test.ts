@@ -1,11 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { InvigilatorMind, TUNING, type Perceived, type Vec } from '../src/world/ai';
-import { DETENTION, DOORS, Grid, INVIGILATOR_HOME, PROPS, START, TILE, WAYPOINTS } from '../src/world/map';
+import { ASSISTANT_HOMES, DETENTION, DOORS, Grid, INVIGILATOR_HOME, PROPS, START, TILE, WAYPOINTS } from '../src/world/map';
 import { NOTES, PAGES } from '../src/story';
 import { freshState, parseState } from '../src/world/state';
 import ru from '../src/i18n/ru';
 import uz from '../src/i18n/uz';
-import { GuestSession } from '../src/platform/guest';
 
 const open = (g: Grid) => DOORS.forEach((d) => g.openDoor(d.id));
 
@@ -14,6 +13,27 @@ describe('map', () => {
     const g = new Grid();
     for (const p of [START, DETENTION]) expect(g.hits(p.x, p.y - 3, 5, 3)).toBe(false);
     expect(g.walkable(Math.floor(INVIGILATOR_HOME.x / TILE), Math.floor(INVIGILATOR_HOME.y / TILE))).toBe(true);
+  });
+
+  it('lets every assistant out through a door of their own that no puzzle guards', () => {
+    expect(new Set(ASSISTANT_HOMES.map((h) => h.door)).size).toBe(ASSISTANT_HOMES.length);
+    for (const h of ASSISTANT_HOMES) {
+      const g = new Grid();
+      expect(DOORS.find((d) => d.id === h.door)?.lock.type).toBe('none');
+      const before = g.path(h.x, h.y, 50 * TILE, 26 * TILE);
+      g.openDoor(h.door);
+      expect(g.path(h.x, h.y, 50 * TILE, 26 * TILE), h.door).not.toBeNull();
+      expect(before, h.door).toBeNull();
+    }
+  });
+
+  it('has a side passage that never leads past a lock', () => {
+    const g = new Grid();
+    for (const d of DOORS) if (d.lock.type === 'none') g.openDoor(d.id);
+    g.openDoor('d_class');
+    g.openDoor('s_class');
+    for (const [x, y] of [[65, 17], [83, 16], [28, 39], [62, 41], [84, 41], [44, 49]]) expect(g.path(START.x, START.y, x * TILE, y * TILE), `${x},${y}`).toBeNull();
+    expect(g.path(START.x, START.y, 114 * TILE, 19 * TILE)).not.toBeNull();
   });
 
   it('keeps the classroom closed until its door opens', () => {
@@ -161,18 +181,10 @@ describe('languages', () => {
   });
 });
 
-describe('state and guest session', () => {
+describe('state', () => {
   it('repairs damaged checkpoints', () => {
     const s = parseState({ x: 'NaN', y: 1e9, items: ['torch', 4], battery: -5, lives: 99 }, 3);
     expect(s).toMatchObject({ x: START.x, y: 4000, items: ['torch'], battery: 0, lives: 3 });
     expect(parseState(null, 2)).toEqual(freshState(2));
-  });
-
-  it('never ships answers to the scene and grades like the server', async () => {
-    const d = new GuestSession('Aziza');
-    expect(JSON.stringify(d.data.questions)).not.toMatch(/"correct"|explanation/);
-    const q = d.data.questions.find((x) => x.gateId === 'typewriter')!;
-    expect(await d.answer(q, 'has')).toMatchObject({ correct: false, resolved: false, attemptsLeft: 1 });
-    expect(await d.answer(q, ' Had. ')).toMatchObject({ correct: true, resolved: true, points: 6 });
   });
 });

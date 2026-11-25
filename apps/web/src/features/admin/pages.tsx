@@ -5,7 +5,7 @@ import { Building2, Check as Check2, CircleAlert, KeyRound, Lock, Gamepad2, Help
 import { FEATURES, TENSIONS, THEMES } from '@last-lesson/scenario';
 import { LanguagePicker, ThemeSwitch } from '../../components/Preferences';
 import { GoogleLink } from '../../components/GoogleLink';
-import { Area, Avatar, Bars, Check, Choice, confirmed, copy, DayChart, Dialog, Empty, Feed, fieldError, Figures, Hero, Load, Page, Pager, Section, Split, Status, Tag, Text, Toggle, useAction } from '../../components/ui';
+import { Area, Avatar, Bars, Check, Choice, confirmed, copy, DayChart, Dialog, Empty, Feed, fieldError, Figures, Hero, Load, Meter, Page, Pager, Section, Split, Status, Tag, Text, Toggle, useAction } from '../../components/ui';
 import { del, get, patch, post, put, startSession, useAuth } from '../../lib/api';
 import { tr } from '../../lib/i18n';
 import { day, fromDateInput, mins, pct, toDateInput, when, words } from '../../lib/format';
@@ -43,10 +43,28 @@ export function Dashboard() {
               <Section title={tr('Most active centers')} action={<Link className="text-sm text-accent hover:underline" to="/admin/centers">{tr('All centers')}</Link>}>{d.topCenters.length ? <Bars unit="" max={Math.max(...d.topCenters.map((c: any) => c.sessions))} rows={d.topCenters.map((c: any) => ({ key: c.id, label: <Link className="hover:underline" to={`/admin/centers/${c.id}`}>{c.name}</Link>, value: c.sessions }))} /> : <p className="text-soft">{tr('No sessions in the last 30 days.')}</p>}</Section>
               <Section title={tr('Activity')} action={<Link className="text-sm text-accent hover:underline" to="/admin/activity">{tr('Activity log')}</Link>}>{feed.data?.items.length ? <Feed items={feed.data.items.map((x: any) => ({ key: x.id, text: <>{tr(words(x.action))} <span className="text-soft">{x.organization?.name ?? ''}</span></>, who: x.actor ? `${x.actor.firstName} ${x.actor.lastName}`.trim() : undefined, at: x.createdAt }))} /> : <p className="text-soft">{tr('Nothing recorded')}</p>}</Section>
             </div>
+            <div className="mt-5"><CentersTable /></div>
           </Page>
         );
       }}
     </Load>
+  );
+}
+
+/** Every education center in one table, best knowledge first. */
+function CentersTable() {
+  const q = useQuery({ queryKey: ['centers-compare'], queryFn: () => get<any[]>('/analytics/centers') });
+  return (
+    <Section title={tr('Centers side by side')} className="lg:col-span-2">
+      <Load q={q}>
+        {(rows) => (
+          <table className="reg min-w-[760px]">
+            <thead><tr><th>{tr('Place')}</th><th>{tr('Center')}</th><th>{tr('Students')}</th><th>{tr('Played this week')}</th><th>{tr('Finished')}</th><th>{tr('Correct')}</th><th>{tr('Average time')}</th><th>{tr('Levels played')}</th></tr></thead>
+            <tbody>{rows.map((c, i) => <tr key={c.id}><td className="font-jac text-2xl leading-none text-accent">{c.accuracy === null ? <span className="text-base text-soft">{i + 1}</span> : i + 1}</td><td><span className="flex items-center gap-3"><Avatar name={c.name} /><span><Link className="font-semibold hover:underline" to={`/admin/centers/${c.id}`}>{c.name}</Link><span className="block text-[13px] text-soft">{c.city}</span></span></span></td><td>{c.students}</td><td>{c.active}</td><td>{c.completed} <span className="text-soft">/ {c.sessions}</span></td><td><Meter value={c.accuracy} /></td><td>{c.seconds ? mins(c.seconds) : ''}</td><td>{c.levels}</td></tr>)}</tbody>
+          </table>
+        )}
+      </Load>
+    </Section>
   );
 }
 

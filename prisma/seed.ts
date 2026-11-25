@@ -285,6 +285,7 @@ async function main() {
       notes: [{ title: 'Reminder from the biology teacher', body: 'A pairs with T. G pairs with C. Write it on your hand if you must.' }],
     },
   });
+  for (const [slug, name, city] of [['silk-road', 'Silk Road Learning Center', 'Tashkent'], ['bright-minds', 'Bright Minds Academy', 'Bukhara'], ['orbit', 'Orbit Education', 'Fergana']] as const) await center(slug, name, city, 'trial', {});
   const other = await center('riverside', 'Riverside Learning Center', 'Tashkent', 'trial', {});
 
   for (const [email, first, last, org] of [

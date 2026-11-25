@@ -18,8 +18,6 @@ export interface RoomLink {
 /** Everything the game needs from outside. Scenes depend on this interface, never on fetch. */
 export interface GameSession {
   readonly data: PlaySession;
-  /** false for a game without signing in: nothing is recorded anywhere. */
-  readonly live: boolean;
   /** Present only when a class plays together. */
   readonly room?: RoomLink;
   answer(question: PlayQuestion, answer: unknown, elapsedMs: number): Promise<AnswerResponse>;

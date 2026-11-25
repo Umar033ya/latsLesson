@@ -8,7 +8,7 @@ import { settingsPanel } from './overlay';
 const platformUrl = () => import.meta.env.VITE_PLATFORM_URL || (import.meta.env.DEV ? 'http://localhost:5173/student' : '/student');
 
 /** Guests have no student page: they return to the room. */
-export const homeUrl = (session: GameSession) => (session.data.lobby ? platformUrl().replace(/\/student\/?$/, '/room') : platformUrl());
+export const homeUrl = (session: GameSession) => platformUrl().replace(/\/student\/?$/, session.data.lobby ? '/room' : session.data.guest ? '/' : '/student');
 
 /** Pages of the platform, next to the game on the same site. */
 const site = (path: string) => platformUrl().replace(/\/student\/?$/, '') + path;
@@ -69,7 +69,7 @@ export function titleScreen(opts: { session: GameSession | null; error?: string;
       menuButton('gear', tr('Settings'), () => windowBox(tr('Settings'), settingsPanel())),
       menuButton('help', tr('How to play'), () => windowBox(tr('How to play'), howTo())),
     ];
-    const who = session ? `${session.data.student.firstName} ${session.data.student.lastName}`.trim() : '';
+    const who = session && !session.data.guest ? `${session.data.student.firstName} ${session.data.student.lastName}`.trim() : '';
     const screen = el(
       'div',
       { class: 'title', style: `background-image:${asset('title.png')}` },
@@ -78,7 +78,7 @@ export function titleScreen(opts: { session: GameSession | null; error?: string;
       el(
         'div',
         { class: 'absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-8 overflow-y-auto px-[max(calc(var(--u)*22),5vw)] py-12' },
-        el('div', {}, el('h1', { class: 'text-paper' }, 'Last Lesson'), el('p', { class: 'mt-2 text-11 text-lamp' }, tr('Knowledge is your only way out.'))),
+        el('div', {}, el('img', { src: './logo.svg', alt: '', class: 'mb-4 size-32 [image-rendering:pixelated]' }), el('h1', { class: 'text-paper' }, 'Last Lesson'), el('p', { class: 'mt-2 text-11 text-lamp' }, tr('Knowledge is your only way out.'))),
         session ? el('div', { class: 'w-176 border-l-2 border-lamp bg-ink/70 px-8 py-4 text-10 leading-snug text-fog' }, el('div', { class: 'text-12 text-paper' }, who), el('div', {}, tr(session.data.campaign.title)), el('div', {}, session.data.lobby?.title ?? session.data.branding.displayName)) : null,
         error ? el('p', { class: 'w-200 border-l-2 border-red bg-ink/80 px-8 py-4 text-10 text-coral', role: 'alert' }, error) : null,
         el('nav', { class: 'grid justify-items-start gap-3' }, ...items),
@@ -166,8 +166,8 @@ export function resultScreen(summary: SessionSummary, session: GameSession, page
         ),
         summary.mistakes?.length ? el('details', { class: 'mistakes', open: true }, el('summary', {}, tr('Learn from this')), ...summary.mistakes.slice(0, 6).map((m) => el('p', {}, el('b', {}, m.prompt), ' ', m.explanation ?? ''))) : null,
         session.data.content.closingLine ? el('p', { class: 'closing' }, session.data.content.closingLine) : null,
-        el('p', { class: 'saved' }, session.live ? tr('Your result has been recorded.') : tr('You played without signing in, so nothing was saved.')),
-        el('footer', {}, session.live ? el('button', { onclick: () => done('home') }, session.room ? tr('See the table') : tr('Back to my page')) : el('button', { onclick: () => done('again') }, tr('Play again'))),
+        el('p', { class: 'saved' }, session.data.guest && !session.room ? tr('You played without signing in: the result is not in any profile.') : tr('Your result has been recorded.')),
+        el('footer', {}, session.data.guest && !session.room ? el('button', { onclick: () => done('again') }, tr('Play again')) : el('button', { onclick: () => done('home') }, session.room ? tr('See the table') : tr('Back to my page'))),
       ),
     );
     ui.append(screen);

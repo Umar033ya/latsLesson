@@ -22,8 +22,8 @@ const ADMIN: Array<[string, Item[]]> = [
 const TEACHER: Array<[string, Item[]]> = [[tr('Class'), [['/teacher', tr('Rooms'), DoorOpen], ['/teacher/account', tr('My settings'), Settings]]]];
 const MENU = { center: CENTER, admin: ADMIN, teacher: TEACHER };
 
-export function Wordmark({ className }: { className?: string }) {
-  return <span className={clsx('font-jac leading-none', className)}>Last Lesson</span>;
+export function Wordmark({ className, name }: { className?: string; name?: string }) {
+  return <span className={clsx('inline-flex items-center gap-[0.28em] whitespace-nowrap font-jac leading-none', className)}><img src="/logo.svg" alt="" className="h-[1em] w-[1em] shrink-0" /><span className={name}>Last Lesson</span></span>;
 }
 
 export function Shell({ kind }: { kind: keyof typeof MENU }) {

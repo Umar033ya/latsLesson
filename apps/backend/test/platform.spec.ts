@@ -55,8 +55,11 @@ beforeAll(async () => {
     await prisma.question.create({ data: { subjectId: subject.id, topicId: ids.topic, type: i % 2 ? 'TRUE_FALSE' : 'MULTIPLE_CHOICE', difficulty: (['EASY', 'MEDIUM', 'HARD'] as const)[i % 3], prompt: `Official ${i}`, options: i % 2 ? {} : [{ id: 'x', text: 'yes' }, { id: 'y', text: 'no' }], correctAnswer: i % 2 ? true : 'x', hint: 'Think', explanation: `Because ${i}`, points: 10 } });
   }
   tokens.root = await login('root@test.dev');
+  await prisma.campaign.create({ data: { title: 'Open night', status: 'PUBLISHED', config: {} } });
   tokens.a = await login('a@test.dev');
   tokens.b = await login('b@test.dev');
+  // E-mail accounts for students are off by default; the platform may allow them.
+  await call('put', '/admin/settings', tokens.root, { studentSignup: true });
 });
 afterAll(() => app.close());
 beforeEach(resetLimits);
@@ -129,7 +132,7 @@ describe('registration', () => {
     await call('put', '/admin/settings', tokens.root, { centerSignup: false, studentSignup: false });
     expect((await call('post', '/auth/register-center', undefined, body)).body.error.code).toBe('REGISTRATION_CLOSED');
     expect((await call('get', '/auth/options')).body).toMatchObject({ centerSignup: false, studentSignup: false });
-    await call('put', '/admin/settings', tokens.root, {});
+    await call('put', '/admin/settings', tokens.root, { studentSignup: true });
   });
 
   it('saves the language of the account', async () => {
@@ -217,7 +220,7 @@ describe('education center', () => {
     expect((await call('patch', '/center/profile', tokens.a, { logoUrl: 'data:image/svg+xml;base64,AAAA' })).status).toBe(400);
     await call('put', '/admin/settings', tokens.root, { allowedTensions: ['CALM'] });
     expect((await call('put', '/center/settings', tokens.a, { gameplay: { tension: 'TENSE' } })).status).toBe(400);
-    await call('put', '/admin/settings', tokens.root, {});
+    await call('put', '/admin/settings', tokens.root, { studentSignup: true });
   });
 });
 
@@ -465,7 +468,7 @@ describe('game session', () => {
     await prisma.organization.update({ where: { id: ids.a }, data: { subscriptionEndsAt: null } });
     await call('put', '/admin/settings', tokens.root, { gameEnabled: false, maintenanceMessage: 'Back at noon' });
     expect((await call('post', '/game-sessions/launch', tokens.lola, { campaignId: ids.campaign })).body.error).toMatchObject({ code: 'GAME_DISABLED', message: 'Back at noon' });
-    await call('put', '/admin/settings', tokens.root, {});
+    await call('put', '/admin/settings', tokens.root, { studentSignup: true });
   });
 });
 
@@ -667,5 +670,59 @@ describe('google sign-in', () => {
     const me = (await call('get', '/auth/me', created.body.accessToken)).body;
     expect(me).toMatchObject({ role: 'CENTER_ADMIN', locale: 'uz', signIn: { google: true, password: false } });
     expect((await call('delete', '/auth/google/link', created.body.accessToken)).status).toBe(409);
+  });
+});
+
+describe('levels', () => {
+  const level = async (number: number) => {
+    const c = await call('post', '/campaigns', tokens.a, { title: `Level ${number}`, config: { level: { subjectId: ids.subject, number }, sections: ['classroom', 'lobby'], source: { subjectIds: [ids.subject], topicIds: [ids.topic] } } });
+    await call('post', `/campaigns/${c.body.id}/publish`, tokens.a);
+    return c.body.id as string;
+  };
+
+  it('open one after another, and the center may let a student begin higher', async () => {
+    await prisma.plan.updateMany({ data: { maxCampaigns: 20 } });
+    const made = [await level(1), await level(2), await level(3)];
+    const path = async () => (await call('get', '/student/home', tokens.lola)).body.paths.find((p: any) => p.subject.id === ids.subject).levels.map((l: any) => l.state);
+    expect(await path()).toEqual(['OPEN', 'LOCKED', 'LOCKED']);
+    expect((await call('post', '/game-sessions/launch', tokens.lola, { campaignId: made[1] })).body.error.code).toBe('LEVEL_LOCKED');
+    const lola = await prisma.user.findFirstOrThrow({ where: { firstName: 'Lola' } });
+    expect((await call('patch', `/center/students/${lola.id}`, tokens.b, { startLevels: { [ids.subject]: 3 } })).status).toBe(404);
+    await call('patch', `/center/students/${lola.id}`, tokens.a, { startLevels: { [ids.subject]: 2 } });
+    expect(await path()).toEqual(['OPEN', 'OPEN', 'LOCKED']);
+    expect((await call('post', '/game-sessions/launch', tokens.lola, { campaignId: made[1] })).status).toBe(201);
+    await prisma.gameSession.updateMany({ where: { campaignId: made[1] }, data: { status: 'COMPLETED', outcome: 'ESCAPED', accuracy: 50 } });
+    expect(await path()).toEqual(['OPEN', 'OPEN', 'LOCKED']);
+    await prisma.gameSession.updateMany({ where: { campaignId: made[1] }, data: { accuracy: 80 } });
+    expect(await path()).toEqual(['OPEN', 'DONE', 'OPEN']);
+  });
+
+  it('compares centers for the platform only', async () => {
+    const rows = (await call('get', '/analytics/centers', tokens.root)).body;
+    expect(rows.find((r: any) => r.id === ids.a)).toMatchObject({ name: 'Center a', levels: 1 });
+    expect((await call('get', '/analytics/centers', tokens.a)).status).toBe(403);
+  });
+});
+
+describe('playing without an account', () => {
+  it('is served and graded by the server, and stays out of centers and profiles', async () => {
+    const users = await prisma.membership.count();
+    const { body } = await call('post', '/play/guest', undefined, { name: 'Visitor', role: 'SUPER_ADMIN' });
+    const ticket = body.launchUrl.split('#ticket=')[1];
+    const play = await call('post', '/play/exchange', undefined, { ticket });
+    expect(play.body.session).toMatchObject({ guest: true, lobby: null, student: { firstName: 'Visitor' } });
+    expect(play.body.session.questions.length).toBeGreaterThan(5);
+    expect(JSON.stringify(play.body.session)).not.toMatch(/correctAnswer|explanation|Because/);
+    const q = play.body.session.questions[0];
+    const r = await call('post', '/play/answers', play.body.token, { gateId: q.gateId, questionId: q.id, answer: q.type === 'TRUE_FALSE' ? true : 'x', requestId: 'guest-req-1', elapsedMs: 4000 });
+    expect(r.body.correct).toBe(true);
+    expect((await call('post', '/play/complete', play.body.token, { requestId: 'guest-done-1', outcome: 'ESCAPED' })).body.outcome).toBe('LEFT');
+    expect(await prisma.membership.count()).toBe(users);
+    expect((await call('get', '/student/home', play.body.token)).status).toBe(401);
+    expect((await prisma.gameSession.findUniqueOrThrow({ where: { id: play.body.session.sessionId } })).organizationId).toBeNull();
+  });
+
+  it('refuses names that are not names', async () => {
+    expect((await call('post', '/play/guest', undefined, { name: '<img src=x>' })).status).toBe(400);
   });
 });

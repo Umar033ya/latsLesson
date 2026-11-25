@@ -43,6 +43,10 @@ Every center-owned table has `organizationId`. `null` means official content. Co
 
 After a refresh the game reads `GET /play/session` and continues. A result that could not be sent is kept locally and sent on the next start.
 
+## Without an account
+
+`POST /play/guest` creates a throwaway guest (`User.isGuest`) and a session of the oldest official campaign that is not a level. From there it is an ordinary session: the browser holds no questions and no answers. `organizationId` is null, so no center sees it. Guests without a room are deleted after two days when the next guest starts.
+
 ## Room flow
 
 1. `POST /lobbies` opens a room with a six-digit code, unique among rooms that are not finished (partial index).

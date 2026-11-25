@@ -87,7 +87,7 @@ export class StudentsService {
     ]);
     return {
       id: m.user.id, firstName: m.user.firstName, lastName: m.user.lastName, email: m.user.email, editable: m.user.homeOrganizationId === organizationId, group: m.group, status: m.status, accessExpiresAt: m.accessExpiresAt, note: m.note, joinedAt: m.joinedAt, lastActiveAt: m.lastActiveAt,
-      progress, codes, sessions,
+      startLevels: m.startLevels, progress, codes, sessions,
     };
   }
 
@@ -106,6 +106,7 @@ export class StudentsService {
           ...(data.status ? { status: data.status } : {}),
           ...(data.accessExpiresAt !== undefined ? { accessExpiresAt: data.accessExpiresAt ? new Date(data.accessExpiresAt) : null } : {}),
           ...(data.note !== undefined ? { note: data.note } : {}),
+          ...(data.startLevels ? { startLevels: data.startLevels } : {}),
         },
       }),
       ...(data.status === 'INACTIVE' ? [this.prisma.refreshToken.updateMany({ where: { userId: studentId, organizationId, revokedAt: null }, data: { revokedAt: new Date() } })] : []),

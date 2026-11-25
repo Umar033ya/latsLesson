@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { levelName } from '../student/LevelMap';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ALL_SECTIONS, gatesFor, SECTIONS, THEMES, type SectionId } from '@last-lesson/scenario';
@@ -27,7 +28,7 @@ export function Campaigns() {
               <article key={c.id} className="sheet flex flex-col overflow-hidden">
                 <div className="h-28 bg-cover bg-[60%_62%] [image-rendering:pixelated]" style={{ backgroundImage: 'url(/art/title.png)' }} aria-hidden="true" />
                 <div className="flex flex-1 flex-col p-5">
-                <div className="flex items-start justify-between gap-3"><h2 className="text-lg font-bold">{c.title}</h2><span className="flex gap-1.5">{c.official && base === '/center' && <Tag tone="blue">{tr('Official')}</Tag>}<Status value={c.status} /></span></div>
+                <div className="flex items-start justify-between gap-3"><h2 className="text-lg font-bold">{c.title}</h2><span className="flex gap-1.5">{c.config.level && <Tag tone="amber">{tr('Level {0}', { 0: c.config.level.number })}</Tag>}{c.official && base === '/center' && <Tag tone="blue">{tr('Official')}</Tag>}<Status value={c.status} /></span></div>
                 <p className="mt-1 flex-1 text-soft">{c.description || tr('No description yet.')}</p>
                 <p className="mt-3 text-[13px] text-soft">{[plural(gatesFor(c.config.sections).length, 'question|questions'), plural(c.config.sections.length, 'room|rooms'), plural(c.sessionCount, 'session|sessions'), ...c.groups.map((g: any) => g.name), c.availableTo && day(c.availableTo)].filter(Boolean).join(', ')}</p>
                 <div className="mt-4 flex flex-wrap gap-2">{!c.official || base === '/admin' ? <Link className="btn-line" to={`${base}/campaigns/${c.id}`}>{tr('Open')}</Link> : <Link className="btn-line" to={`${base}/campaigns/${c.id}`}>{tr('Preview')}</Link>}<button className="btn-quiet" disabled={copy.isPending} onClick={() => copy.mutate(c.id)}>{tr('Make a copy')}</button></div>
@@ -88,6 +89,13 @@ function Editor({ campaign }: { campaign: any }) {
               <Text label={tr('Title')} maxLength={100} value={c.title} onChange={(e) => setC({ ...c, title: e.target.value })} />
               <Area label={tr('Description for students')} rows={2} maxLength={500} value={c.description ?? ''} onChange={(e) => setC({ ...c, description: e.target.value })} />
               <Area label={tr('Learning objectives, one per line (up to 5)')} rows={2} value={cfg.objectives.join('\n')} onChange={(e) => setCfg({ objectives: e.target.value.split('\n').slice(0, 5) })} onBlur={() => setCfg({ objectives: cfg.objectives.map((s: string) => s.trim()).filter(Boolean) })} />
+            </div>
+          </Section>
+          <Section title={tr('Level map')}>
+            <p className="mb-3 text-soft">{tr('Makes this campaign a step on the student’s map. The next level opens after this one is passed.')}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Choice label={tr('Subject of the level')} value={cfg.level?.subjectId ?? ''} options={[['', tr('Not a level')], ...(subjects.data ?? []).map((s): [string, string] => [s.id, tr(s.name)])]} onChange={(e) => setCfg({ level: e.target.value ? { subjectId: e.target.value, number: cfg.level?.number ?? 1 } : null })} />
+              {cfg.level && <Choice label={tr('Level number')} value={String(cfg.level.number)} options={Array.from({ length: 5 }, (_, i): [string, string] => [String(i + 1), `${i + 1}. ${levelName(i + 1)}`])} onChange={(e) => setCfg({ level: { ...cfg.level, number: Number(e.target.value) } })} />}
             </div>
           </Section>
           <Section title={tr('Rooms')}>

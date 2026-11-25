@@ -15,7 +15,7 @@ Errors always look like `{ "error": { "code", "message", "details?", "requestId"
 | Authentication | `POST /auth/login`, `/auth/code`, `/auth/refresh`, `/auth/logout`, `/auth/change-password`, `GET /auth/me` | public / signed in |
 | Centers | `GET, POST /organizations`, `GET, PATCH /organizations/:id`, `PATCH /organizations/:id/status` | super admin |
 | Administrators | `GET, POST /users/admins`, `POST /users/:id/assign`, `PATCH /users/:id/status`, `POST /users/:id/reset-password` | super admin |
-| Platform | `GET, PUT /admin/settings`, `/admin/plans`, `GET /admin/security`, `GET /analytics/platform` | super admin |
+| Platform | `GET, PUT /admin/settings`, `/admin/plans`, `GET /admin/security`, `GET /analytics/platform`, `/analytics/centers` | super admin |
 | Own center | `GET /center/dashboard`, `GET, PATCH /center/profile`, `PUT /center/settings` | center admin |
 | Students, groups | `/center/students` (+ `/bulk`, `/:id/code`), `/center/groups` (+ `/:id/campaigns`) | center admin |
 | Access codes | `GET, POST /invitations`, `POST /invitations/:id/regenerate`, `/revoke`, `PATCH /invitations/:id` | center admin |
@@ -24,6 +24,7 @@ Errors always look like `{ "error": { "code", "message", "details?", "requestId"
 | Results | `GET /game-results/organization`, `/game-results/mine`, `/game-results/:id/review`, `GET /analytics/organization` | by role |
 | Student | `GET /student/home`, `/student/progress`, `/ai-preparation` (+ `/:id/practice`) | student |
 | Sessions | `POST /game-sessions/launch`, `/:id/resume`, `/:id/abandon`, `GET /game-sessions/history` | student |
+| Playing without an account | `POST /play/guest` `{ name? }` returns a launch link to the official campaign | public, 60 per 10 minutes and IP |
 | Game client | `POST /play/exchange`, `GET /play/session`, `POST /play/answers`, `/play/hint`, `PUT /play/checkpoint`, `POST /play/complete` | game token |
 | Game configuration | `GET /games/config` | signed in |
 | Audit | `GET /audit-logs` | center admin (own), super admin |

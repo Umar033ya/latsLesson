@@ -296,7 +296,7 @@ export class Overlay {
     );
   }
 
-  pause(info: { objectives: string[]; live: boolean; canLeave: boolean }): Promise<'resume' | 'leave'> {
+  pause(info: { objectives: string[]; canLeave: boolean }): Promise<'resume' | 'leave'> {
     return this.hold(
       () =>
         new Promise((resolve) => {
@@ -319,7 +319,7 @@ export class Overlay {
               'div',
               { class: 'max-h-[94%] w-350 max-w-[96%] overflow-auto border-2 border-steel bg-night px-14 py-10' },
               el('h2', { class: 'mb-5 text-16 text-paper' }, tr('Break')),
-              el('div', { class: 'mb-8 grid grid-cols-2 gap-5' }, el('button', { class: 'bg-lamp px-10 py-4 text-center text-11 text-ink hover:brightness-110', onclick: () => done('resume') }, tr('Back to the school')), info.canLeave ? el('button', { class: 'border border-steel bg-ink px-10 py-4 text-center text-11 text-paper hover:border-red hover:text-coral', onclick: () => done('leave') }, info.live ? tr('Leave and hand in') : tr('Leave')) : null),
+              el('div', { class: 'mb-8 grid grid-cols-2 gap-5' }, el('button', { class: 'bg-lamp px-10 py-4 text-center text-11 text-ink hover:brightness-110', onclick: () => done('resume') }, tr('Back to the school')), info.canLeave ? el('button', { class: 'border border-steel bg-ink px-10 py-4 text-center text-11 text-paper hover:border-red hover:text-coral', onclick: () => done('leave') }, tr('Leave and hand in')) : null),
               info.objectives.length ? el('ul', { class: 'goals' }, ...info.objectives.map((o) => el('li', {}, o))) : null,
               settingsPanel(),
               isTouch() ? null : el('p', { class: 'keys' }, tr('WASD or arrows: move    Shift: run    E: use    F: torch    R: battery    Q: throw chalk    J: notebook    V: phrases    Esc: break')),

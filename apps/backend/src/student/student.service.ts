@@ -3,6 +3,7 @@ import { gatesFor, SECTIONS, type Locale } from '@last-lesson/scenario';
 import { PrismaService } from '../common/prisma.service';
 import { AccessService } from '../common/access.service';
 import { studentOrg, type Actor } from '../common/actor';
+import { LevelsService } from '../campaigns/levels.service';
 import { CampaignsService } from '../campaigns/campaigns.service';
 import { PlayService } from '../game-sessions/play.service';
 
@@ -13,6 +14,7 @@ export class StudentService {
     private readonly access: AccessService,
     private readonly campaigns: CampaignsService,
     private readonly play: PlayService,
+    private readonly levels: LevelsService,
   ) {}
 
   async home(actor: Actor, locale: Locale) {
@@ -24,11 +26,11 @@ export class StudentService {
     const platform = await this.access.platform();
     const [items, sessions] = await Promise.all([
       this.prisma.campaign.findMany({ where: this.campaigns.availableWhere(organizationId, membership.groupId, settings.allowOfficialCampaigns), orderBy: [{ organizationId: 'desc' }, { publishedAt: 'desc' }] }),
-      this.prisma.gameSession.findMany({ where: { userId: actor.id, organizationId }, orderBy: { startedAt: 'desc' }, take: 200, select: { id: true, campaignId: true, lobbyId: true, status: true, outcome: true, score: true, maxScore: true, accuracy: true, startedAt: true, durationSeconds: true } }),
+      this.prisma.gameSession.findMany({ where: { userId: actor.id, organizationId }, orderBy: { startedAt: 'desc' }, take: 400, select: { id: true, campaignId: true, lobbyId: true, status: true, outcome: true, score: true, maxScore: true, accuracy: true, startedAt: true, durationSeconds: true } }),
     ]);
     const subjects = await this.prisma.subject.findMany({ where: { isActive: true }, select: { id: true, name: true, slug: true, color: true, topics: { where: { isActive: true }, select: { id: true, name: true, slug: true }, orderBy: { name: 'asc' } } }, orderBy: { name: 'asc' } });
     const campaigns = await Promise.all(
-      items.map(async (c) => {
+      items.filter((c) => !this.levels.config(c).level).map(async (c) => {
         const config = this.campaigns.config(c);
         const tr = (c.translations as Record<string, { title?: string; description?: string; objectives?: string[] }>)?.[locale];
         const own = sessions.filter((s) => s.campaignId === c.id);
@@ -56,6 +58,20 @@ export class StudentService {
         };
       }),
     );
+    const topicName = new Map(subjects.flatMap((s) => s.topics.map((t) => [t.id, t.name] as const)));
+    const paths = this.levels
+      .paths(items, sessions, membership.startLevels)
+      .map((p) => ({
+        subject: subjects.find((s) => s.id === p.subjectId) ?? null,
+        start: p.start,
+        levels: p.steps.map((s) => {
+          const best = sessions.filter((x) => x.campaignId === s.campaign.id && x.status === 'COMPLETED').sort((a, b) => b.accuracy - a.accuracy)[0];
+          const tr = (s.campaign.translations as Record<string, { title?: string }>)?.[locale];
+          return { campaignId: s.campaign.id, number: s.number, title: tr?.title || s.campaign.title, state: s.state, topics: s.config.source.topicIds.map((id) => topicName.get(id)).filter((n): n is string => Boolean(n)), minutes: s.config.gameplay.sessionMinutes ?? settings.gameplay.sessionMinutes, accuracy: best ? Math.round(best.accuracy) : null, inProgress: sessions.find((x) => x.campaignId === s.campaign.id && x.status === 'IN_PROGRESS' && !x.lobbyId)?.id ?? null };
+        }),
+      }))
+      .filter((p) => p.subject)
+      .sort((a, b) => a.subject!.name.localeCompare(b.subject!.name));
     const finished = sessions.filter((s) => s.status === 'COMPLETED');
     return {
       student: { firstName: actor.firstName, lastName: actor.lastName, group: membership.group?.name ?? null, accessExpiresAt: membership.accessExpiresAt },
@@ -64,6 +80,7 @@ export class StudentService {
       maintenance: platform.gameEnabled ? null : platform.maintenanceMessage || 'The game is closed for maintenance',
       features: await this.access.features(org),
       campaigns,
+      paths,
       subjects,
       summary: { played: sessions.length, finished: finished.length, averageAccuracy: finished.length ? Math.round(finished.reduce((s, r) => s + r.accuracy, 0) / finished.length) : null, last: sessions[0] ?? null },
     };

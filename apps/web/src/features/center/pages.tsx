@@ -5,6 +5,7 @@ import { CheckCircle2, Circle, Clock, Gamepad2, DoorOpen, KeyRound, Map as MapIc
 import { THEMES } from '@last-lesson/scenario';
 import { GameplayFields } from '../../components/Gameplay';
 import { Area, Avatar, Bars, Check, Choice, confirmed, copy, DayChart, Dialog, download, Empty, Feed, Figures, Hero, Load, Meter, Page, Pager, Section, Split, Status, Text, useAction } from '../../components/ui';
+import { levelName } from '../student/LevelMap';
 import { del, get, patch, post, put, useAuth } from '../../lib/api';
 import { plural, tr } from '../../lib/i18n';
 import { OUTCOME, ago, day, fromDateInput, mins, pct, toDateInput, when, words } from '../../lib/format';
@@ -117,6 +118,23 @@ function AddStudents({ groups, onClose, onCodes }: { groups: any[]; onClose: () 
   );
 }
 
+/** The center decides from which level a student begins in each subject. */
+function StartLevels({ student, onSave }: { student: any; onSave: (v: Record<string, number>) => void }) {
+  const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: () => get<any[]>('/campaigns') });
+  const subjects = useQuery({ queryKey: ['subjects'], queryFn: () => get<any[]>('/subjects') });
+  const [value, setValue] = useState<Record<string, number>>(student.startLevels ?? {});
+  const withLevels = (subjects.data ?? []).map((s) => ({ ...s, top: Math.max(0, ...(campaigns.data ?? []).filter((c) => c.config.level?.subjectId === s.id && c.status === 'PUBLISHED').map((c) => c.config.level.number)) })).filter((s) => s.top > 0);
+  if (!withLevels.length) return null;
+  return (
+    <Section title={tr('First level')} className="lg:col-span-2" action={<button className="btn-main" onClick={() => onSave(value)}>{tr('Save')}</button>}>
+      <p className="mb-3 text-soft">{tr('From which level the student begins. Lower levels stay open for repetition.')}</p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {withLevels.map((s) => <Choice key={s.id} label={tr(s.name)} value={String(value[s.id] ?? 1)} options={Array.from({ length: s.top }, (_, i): [string, string] => [String(i + 1), `${i + 1}. ${levelName(i + 1)}`])} onChange={(e) => setValue({ ...value, [s.id]: Number(e.target.value) })} />)}
+      </div>
+    </Section>
+  );
+}
+
 export function StudentPage() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -137,6 +155,7 @@ export function StudentPage() {
           <div className="grid gap-5 lg:grid-cols-2">
             <Section title={tr('Topics')}>{s.progress.topics.length ? <Bars warnBelow={70} rows={s.progress.topics.map((t: any) => ({ key: t.topic, label: <>{tr(t.topic)} <span className="text-soft">{tr(t.subject)}</span></>, value: t.accuracy, note: `(${t.answered})` }))} /> : <p className="text-soft">{tr('No answers yet.')}</p>}</Section>
             <Section title={tr('Access codes')}><ul className="divide-y divide-rule">{s.codes.map((c: any) => <li key={c.id} className="flex justify-between py-2"><span className="font-dot">...{c.hint}</span><span className="text-soft">{c.revokedAt ? tr('Revoked') : tr('Until {0}', { 0: day(c.expiresAt) })}{c.lastUsedAt ? ` (${when(c.lastUsedAt)})` : ''}</span></li>)}</ul>{!s.codes.length && <p className="text-soft">{tr('No code yet.')}</p>}</Section>
+            <StartLevels student={s} onSave={(startLevels) => save.mutate({ startLevels })} />
             <Section title={tr('Sessions')} className="overflow-x-auto lg:col-span-2">{s.sessions.length ? <table className="reg min-w-[520px]"><thead><tr><th>{tr('Campaign')}</th><th>{tr('Result')}</th><th>{tr('Score')}</th><th>{tr('Correct')}</th><th>{tr('Started')}</th></tr></thead><tbody>{s.sessions.map((r: any) => <tr key={r.id}><td>{r.status === 'IN_PROGRESS' ? r.campaign?.title : <Link className="font-semibold hover:underline" to={`/center/results/${r.id}`}>{r.campaign?.title ?? tr('Removed')}</Link>}</td><td>{r.outcome ? OUTCOME[r.outcome] : <Status value={r.status} />}</td><td>{r.score}</td><td>{pct(r.accuracy)}</td><td>{when(r.startedAt)}</td></tr>)}</tbody></table> : <p className="text-soft">{tr('This student has not played yet.')}</p>}</Section>
           </div>
           <Dialog title={tr('Edit student')} open={Boolean(edit)} onClose={() => setEdit(null)}>

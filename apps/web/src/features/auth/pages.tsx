@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { DoorOpen, KeyRound } from 'lucide-react';
 import { GoogleSignIn, useAuthOptions } from '../../components/Google';
@@ -49,7 +49,7 @@ export function LoginPage() {
     }
   };
   return (
-    <Frame title={tr('Sign in')} lead={tr('For administrators, teachers and students with an e-mail.')}>
+    <Frame title={tr('Sign in')} lead={tr('For teachers and administrators. Students enter with a code.')}>
       <GoogleSignIn onToken={enter} />
       <form onSubmit={submit} className="space-y-4">
         <Text label={tr('E-mail')} type="email" autoComplete="username" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -57,23 +57,21 @@ export function LoginPage() {
         {error && <p className="font-semibold text-pencil-dark" role="alert">{error}</p>}
         <button className="btn-main w-full py-2.5" disabled={busy}>{busy ? tr('Signing in...') : tr('Sign in')}</button>
       </form>
-      <div className="mt-5 flex flex-wrap justify-between gap-3 text-sm"><Link to="/register" className="font-semibold text-accent hover:underline">{tr('Create account')}</Link><button className="text-soft hover:underline" onClick={() => setForgot(!forgot)}>{tr('Forgot your password?')}</button></div>
-      {forgot && <p className="mt-3 rounded-lg bg-well p-3 text-sm text-soft">{tr('Students: enter with your access code and set a new password in settings. Center administrators: the platform can issue a new password.')}{' '}{options.data?.supportEmail}</p>}
+      <div className="mt-5 flex flex-wrap justify-between gap-3 text-sm"><Link to="/register" className="font-semibold text-accent hover:underline">{tr('Register a center')}</Link><button className="text-soft hover:underline" onClick={() => setForgot(!forgot)}>{tr('Forgot your password?')}</button></div>
+      {forgot && <p className="mt-3 rounded-lg bg-well p-3 text-sm text-soft">{tr('Teachers: ask your center for a new password. Center administrators: the platform can issue a new password.')}{' '}{options.data?.supportEmail}</p>}
     </Frame>
   );
 }
 
+/** Only an education center registers here. Teachers are added by their center; students enter with a code and a name. */
 export function RegisterPage() {
-  const [params] = useSearchParams();
-  const [kind, setKind] = useState<'student' | 'center'>(params.get('as') === 'center' ? 'center' : 'student');
-  const [f, setF] = useState({ firstName: '', lastName: '', email: '', password: '', repeat: '', invitationCode: params.get('code') ?? '', centerName: '', city: '', agree: false });
+  const [f, setF] = useState({ firstName: '', lastName: '', email: '', password: '', repeat: '', centerName: '', city: '' });
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const options = useAuthOptions();
   const me = useAuth((s) => s.me);
   const enter = useEnter();
   if (me) return <Navigate to={homeOf(me)} replace />;
-  const closed = options.data && (kind === 'student' ? !options.data.studentSignup : !options.data.centerSignup);
   const mismatch = f.repeat !== '' && f.repeat !== f.password;
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const submit = async (e: FormEvent) => {
@@ -82,34 +80,30 @@ export function RegisterPage() {
     setBusy(true);
     setError(null);
     try {
-      const { firstName, lastName, email, password } = f;
-      const base = { firstName, lastName, email, password, locale: getLanguage() };
-      const r = kind === 'student' ? await post<{ accessToken: string }>('/auth/register', { ...base, invitationCode: f.invitationCode }) : await post<{ accessToken: string }>('/auth/register-center', { ...base, centerName: f.centerName, city: f.city || undefined });
+      const { repeat: _repeat, city, ...fields } = f;
+      const r = await post<{ accessToken: string }>('/auth/register-center', { ...fields, city: city || undefined, locale: getLanguage() });
       await enter(r.accessToken);
     } catch (err) {
       setError(err);
       setBusy(false);
     }
   };
-  const tab = (k: 'student' | 'center', label: string) => <button type="button" role="tab" aria-selected={kind === k} onClick={() => { setKind(k); setError(null); }} className={clsx('flex-1 rounded-lg px-3 py-2 font-semibold', kind === k ? 'bg-sheet text-ink shadow-sheet' : 'text-soft hover:text-ink')}>{label}</button>;
   return (
-    <Frame wide title={tr('Create account')} lead={kind === 'student' ? tr('An account keeps your progress on any device.') : tr('Your own questions, groups and campaigns. Students play with codes.')}>
-      <div className="mb-5 flex gap-1 rounded-xl bg-track p-1" role="tablist">{tab('student', tr('I am a student'))}{tab('center', tr('I run an education center'))}</div>
-      {closed ? (
+    <Frame wide title={tr('Register a center')} lead={tr('Your own questions, groups and campaigns. Students play with codes.')}>
+      {options.data && !options.data.centerSignup ? (
         <p className="rounded-lg bg-well p-4">{tr('Registration is closed right now.')}</p>
       ) : (
         <>
-        <GoogleSignIn onToken={enter} />
-        <form onSubmit={submit} className="space-y-4">
-          {kind === 'center' && <div className="grid gap-4 sm:grid-cols-2"><Text label={tr('Center name')} required minLength={2} maxLength={120} value={f.centerName} onChange={set('centerName')} /><Text label={tr('City')} maxLength={80} value={f.city} onChange={set('city')} /></div>}
-          {kind === 'student' && <Text label={tr('Access code from your center')} required minLength={6} maxLength={20} className="uppercase" placeholder="LL-XXXX-XXXX" autoComplete="off" hint={tr('A group code or your personal code. With a personal code your earlier results stay with you.')} value={f.invitationCode} onChange={set('invitationCode')} />}
-          <div className="grid gap-4 sm:grid-cols-2"><Text label={tr('First name')} required maxLength={80} autoComplete="given-name" value={f.firstName} onChange={set('firstName')} /><Text label={tr('Last name')} required maxLength={80} autoComplete="family-name" value={f.lastName} onChange={set('lastName')} /></div>
-          <Text label={tr('E-mail')} type="email" required autoComplete="username" value={f.email} error={fieldError(error, 'email')} onChange={set('email')} />
-          <div className="grid gap-4 sm:grid-cols-2"><Text label={tr('Password')} type="password" required minLength={8} maxLength={128} autoComplete="new-password" hint={tr('At least 8 characters')} value={f.password} error={fieldError(error, 'password')} onChange={set('password')} /><Text label={tr('Repeat the password')} type="password" required autoComplete="new-password" error={mismatch ? tr('The passwords do not match') : undefined} value={f.repeat} onChange={set('repeat')} /></div>
-          {Boolean(error) && <p className="font-semibold text-pencil-dark" role="alert">{errorText(error)}</p>}
-          <button className="btn-main w-full py-2.5" disabled={busy || mismatch}>{busy ? tr('Creating...') : kind === 'student' ? tr('Create student account') : tr('Start free trial')}</button>
-          {kind === 'center' && options.data && <p className="text-sm text-soft">{tr('The trial lasts {0} days. No payment details are needed.', { 0: options.data.trialDays })}</p>}
-        </form>
+          <GoogleSignIn onToken={enter} />
+          <form onSubmit={submit} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2"><Text label={tr('Center name')} required minLength={2} maxLength={120} value={f.centerName} onChange={set('centerName')} /><Text label={tr('City')} maxLength={80} value={f.city} onChange={set('city')} /></div>
+            <div className="grid gap-4 sm:grid-cols-2"><Text label={tr('First name')} required maxLength={80} autoComplete="given-name" value={f.firstName} onChange={set('firstName')} /><Text label={tr('Last name')} required maxLength={80} autoComplete="family-name" value={f.lastName} onChange={set('lastName')} /></div>
+            <Text label={tr('E-mail')} type="email" required autoComplete="username" value={f.email} error={fieldError(error, 'email')} onChange={set('email')} />
+            <div className="grid gap-4 sm:grid-cols-2"><Text label={tr('Password')} type="password" required minLength={8} maxLength={128} autoComplete="new-password" hint={tr('At least 8 characters')} value={f.password} error={fieldError(error, 'password')} onChange={set('password')} /><Text label={tr('Repeat the password')} type="password" required autoComplete="new-password" error={mismatch ? tr('The passwords do not match') : undefined} value={f.repeat} onChange={set('repeat')} /></div>
+            {Boolean(error) && <p className="font-semibold text-pencil-dark" role="alert">{errorText(error)}</p>}
+            <button className="btn-main w-full py-2.5" disabled={busy || mismatch}>{busy ? tr('Creating...') : tr('Start free trial')}</button>
+            {options.data && <p className="text-sm text-soft">{tr('The trial lasts {0} days. No payment details are needed.', { 0: options.data.trialDays })}</p>}
+          </form>
         </>
       )}
       <p className="mt-5 text-sm text-soft">{tr('Already registered?')}{' '}<Link to="/login" className="font-semibold text-accent hover:underline">{tr('Sign in')}</Link></p>

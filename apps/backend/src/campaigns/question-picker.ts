@@ -8,6 +8,8 @@ export interface Slot {
   gateId: string;
   questionId: string;
 }
+/** About this share of earlier topics is as welcome as the new ones. */
+const REVIEW_SHARE = 0.35;
 const LEVEL = { EASY: 0, MEDIUM: 1, HARD: 2 } as const;
 
 /** Chooses which stored question sits behind each gate. No AI and no client input is involved. */
@@ -33,7 +35,7 @@ export class QuestionPicker {
   }
 
   async pool(config: CampaignConfig, organizationId: string | null) {
-    return this.prisma.question.findMany({ where: this.poolWhere(config, organizationId), select: { id: true, type: true, difficulty: true, subjectId: true, prompt: true }, take: 2000 });
+    return this.prisma.question.findMany({ where: this.poolWhere(config, organizationId), select: { id: true, type: true, difficulty: true, subjectId: true, topicId: true, prompt: true }, take: 2000 });
   }
 
   targetLevel(config: CampaignConfig, index: number, total: number): number {
@@ -43,10 +45,11 @@ export class QuestionPicker {
     return Math.max(0, Math.min(2, base + (third < 0.34 ? -1 : third < 0.67 ? 0 : 1)));
   }
 
-  async pick(config: CampaignConfig, organizationId: string | null, avoid: { practiced?: string[]; recent?: string[] } = {}, hiding = false): Promise<Slot[]> {
+  async pick(config: CampaignConfig, organizationId: string | null, avoid: { practiced?: string[]; recent?: string[]; review?: string[] } = {}, hiding = false): Promise<Slot[]> {
     const path = gatesFor(config.sections);
     const gates = hiding ? [...path, ...HIDING_GATES] : path;
-    const pool = await this.pool(config, organizationId);
+    const review = avoid.review ?? [];
+    const pool = await this.pool(review.length ? { ...config, source: { ...config.source, topicIds: [...config.source.topicIds, ...review] } } : config, organizationId);
     const fixedIds = Object.values(config.overrides).map((o) => o.questionId).filter((id): id is string => Boolean(id));
     const fixed = fixedIds.length
       ? await this.prisma.question.findMany({ where: { id: { in: fixedIds }, status: 'PUBLISHED', OR: [{ organizationId: null }, ...(organizationId ? [{ organizationId }] : [])] }, select: { id: true } })
@@ -71,7 +74,7 @@ export class QuestionPicker {
         // Only short, two-tap questions fit into a hiding place.
         .filter((q) => gate.section !== 'hiding' || gate.preferred.includes(q.type as QuestionKind))
         .filter((q) => !used.has(q.id) && (!override.subjectId || q.subjectId === override.subjectId))
-        .map((q) => ({ id: q.id, cost: this.cost(gate, q.type as QuestionKind, LEVEL[q.difficulty], level) + (avoid.practiced?.includes(q.id) ? 6 : 0) + (avoid.recent?.includes(q.id) ? 3 : 0) + Math.random() * 1.5 }))
+        .map((q) => ({ id: q.id, cost: this.cost(gate, q.type as QuestionKind, LEVEL[q.difficulty], level) + (avoid.practiced?.includes(q.id) ? 6 : 0) + (avoid.recent?.includes(q.id) ? 3 : 0) + (q.topicId && review.includes(q.topicId) && Math.random() > REVIEW_SHARE ? 5 : 0) + Math.random() * 1.5 }))
         .sort((a, b) => a.cost - b.cost);
       if (!ranked.length) continue;
       slots.set(gate.id, ranked[0].id);

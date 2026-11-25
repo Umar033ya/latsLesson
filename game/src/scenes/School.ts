@@ -15,7 +15,7 @@ import { InvigilatorMind, TUNING, type AiState } from '../world/ai';
 import { bakeSchool } from '../world/bake';
 import { Friends, skin } from '../world/friends';
 import { Occluders, type Light, type LightPipeline } from '../world/lighting';
-import { COLS, DETENTION, DOORS, Grid, INVIGILATOR_HOME, LAMPS, PROPS, ROWS, TILE, WAYPOINTS, type Door, type Prop } from '../world/map';
+import { ASSISTANT_HOMES, COLS, DETENTION, DOORS, Grid, INVIGILATOR_HOME, LAMPS, PROPS, ROWS, TILE, WAYPOINTS, type Door, type Prop } from '../world/map';
 import { parseState, type GameState } from '../world/state';
 
 export interface SchoolResult {
@@ -56,6 +56,8 @@ export class School extends Phaser.Scene {
   private player!: Phaser.GameObjects.Sprite;
   private inv!: Phaser.GameObjects.Sprite;
   private mind!: InvigilatorMind;
+  /** Further examiners of a tense night. They share the rules of the first one. */
+  private aides: Array<{ mind: InvigilatorMind; sprite: Phaser.GameObjects.Sprite; home: (typeof ASSISTANT_HOMES)[number] }> = [];
   private pipe: LightPipeline | null = null;
   private occ!: Occluders;
   private things: Thing[] = [];
@@ -156,6 +158,7 @@ export class School extends Phaser.Scene {
     this.buildDoors();
     for (const id of this.s.doors) this.openDoor(id, true);
     if (this.has('secret')) this.openSecret(true);
+    this.reopenPassages();
 
     const lobby = d.lobby;
     const texture = lobby ? skin(this, lobby.color) : 'player';
@@ -172,7 +175,9 @@ export class School extends Phaser.Scene {
       TUNING[this.game_.tension],
       { state: (n, p) => this.onMind(n, p), caught: () => void this.caught() },
     );
+    this.aides = this.study ? [] : ASSISTANT_HOMES.slice(0, { CALM: 1, STANDARD: 2, TENSE: 3 }[this.game_.tension]).map((home) => this.makeAide(home));
     if (this.huntStarted() && !this.study) this.mind.wake();
+    this.wakeAides(true);
 
     this.buildThings();
     this.buildLight();
@@ -289,6 +294,37 @@ export class School extends Phaser.Scene {
     this.unlisten.push(() => target.removeEventListener(type, fn));
   }
 
+  private makeAide(home: (typeof ASSISTANT_HOMES)[number]) {
+    const t = TUNING[this.game_.tension];
+    const mind = new InvigilatorMind(
+      home,
+      { path: (a, b) => this.grid.path(a.x, a.y, b.x, b.y), sees: (a, b) => this.grid.sees(a.x, a.y, b.x, b.y), waypoints: () => WAYPOINTS.filter((w) => (this.game_.tension === 'CALM' ? w.room === 'hall' : true) && this.roomReachable(w.room)) },
+      // Slower and shorter-sighted than the first one: more of them, not harder to outrun.
+      { ...t, patrol: t.patrol * 0.9, chase: t.chase * 0.85, sightLit: t.sightLit * 0.85 },
+      { state: (n, p) => this.onMind(n, p), caught: () => void this.caught() },
+    );
+    const sprite = this.add.sprite(0, 0, 'invigilator', 0).setOrigin(0.5, 0.97).setScale(0.86).setTint(0xb9c8ff).setVisible(false);
+    return { mind, sprite, home };
+  }
+
+  /** They come out when the lights do, each through a door of their own that then stays open. */
+  private wakeAides(restored = false) {
+    if (this.study || this.has('examdone')) return;
+    const awake = this.has('reward:typewriter') ? this.aides.length : this.has('power') ? 1 : 0;
+    for (const a of this.aides.slice(0, awake)) {
+      if (!this.grid.doorOpen(a.home.door)) this.openDoor(a.home.door, restored);
+      a.mind.wake();
+    }
+  }
+
+  private minds() {
+    return [this.mind, ...this.aides.map((a) => a.mind)];
+  }
+
+  private chased() {
+    return this.minds().some((m) => m.state === 'CHASE');
+  }
+
   /** The first rooms are for learning. He starts his rounds after the library. */
   private huntStarted() {
     return this.has('seen') && (this.has('reward:catalogue') || this.game_.tension === 'TENSE');
@@ -389,6 +425,7 @@ export class School extends Phaser.Scene {
       if (!this.study) {
         this.mind.relocate({ x: 70 * T, y: 26 * T }, 0);
         this.mind.alarm({ x: this.player.x, y: this.player.y });
+        this.wakeAides();
       }
     });
     this.gate('locker', P('locker').x, P('locker').y + 6, 22, tr('Read the note on the locker'), () => true, [], async (ok) => {
@@ -437,9 +474,9 @@ export class School extends Phaser.Scene {
       const p = P(id);
       this.thing({ x: p.x, y: p.y + (id === 'piano' ? 6 : 16), r: 20, label: () => (id === 'piano' ? tr('Press a key') : tr('Look at the portrait')), use: async () => { if (id === 'piano') { this.audio.play('correct', 0.25, 0.5); this.makeNoise(p.x, p.y, 120); } await this.ui.talk(INSPECT[id]); } });
     }
-    for (const [i, [x, y]] of [[29.6, 26.6], [52.6, 18.9], [72, 19.6], [16.4, 39.6], [33.8, 39.4], [48, 36], [71, 41], [55.4, 49.6]].entries())
+    for (const [i, [x, y]] of [[29.6, 26.6], [52.6, 18.9], [72, 19.6], [16.4, 39.6], [33.8, 39.4], [48, 36], [71, 41], [55.4, 49.6], [105.5, 19.4], [103, 41.2]].entries())
       this.pickup(`battery${i}`, 'battery', x * T, y * T, tr('Take the battery'), () => { this.s.spare += 1; this.ui.toast(tr('Battery. R to change it.')); });
-    for (const [i, [x, y]] of [[24.8, 26.8], [23.4, 34.2], [79, 15.4], [41.8, 49.8]].entries())
+    for (const [i, [x, y]] of [[24.8, 26.8], [23.4, 34.2], [79, 15.4], [41.8, 49.8], [113.4, 16.4], [110.6, 35]].entries())
       this.pickup(`chalk${i}`, 'chalk', x * T, y * T, tr('Take the chalk'), () => { this.s.chalk += 1; this.ui.toast(tr('Chalk. Q to throw it.')); });
     for (const p of PROPS) if (p.id === 'hide') this.hideSpot(p);
     for (const d of DOORS) this.doorThing(d);
@@ -456,7 +493,12 @@ export class School extends Phaser.Scene {
       label: () => (this.hidden === t ? tr('Step out') : p.sprite === 'locker' ? tr('Hide in the locker') : tr('Hide in the wardrobe')),
       use: () => {
         if (this.hidden === t) return this.unhide();
-        const watched = this.mind.state === 'CHASE' && this.mind.canSee(this.perceived());
+        const taken = this.friends?.hiding(p.x, p.y + 5);
+        if (taken) {
+          this.audio.play('locked', 0.6);
+          return this.ui.toast(tr('{0} is already hiding here', { 0: taken }));
+        }
+        const watched = this.minds().some((m) => m.state === 'CHASE' && m.canSee(this.perceived()));
         this.hidden = t;
         this.audio.play('locker', 0.5);
         this.player.setVisible(false);
@@ -483,7 +525,7 @@ export class School extends Phaser.Scene {
       this.learn(q, out.explanation, out.result === 'correct');
     }
     if (out.result === 'correct') {
-      this.mind.calm();
+      this.minds().forEach((m) => m.calm());
       this.s.battery = Math.min(100, this.s.battery + 10);
       this.ui.toast(tr('You stay quiet. He walks on. Battery +10'));
     } else {
@@ -558,6 +600,16 @@ export class School extends Phaser.Scene {
     }
   }
 
+  /** After a refresh the grid is new; the lights are built later, so nothing is redrawn here. */
+  private reopenPassages() {
+    for (const d of DOORS) if (d.sprite === 'none' && d.id !== 'secret' && d.lock.type === 'flag' && (this.has(d.lock.flag) || (d.lock.flag === 'blackboard' && this.has('open:blackboard')))) this.openDoor(d.id, true);
+  }
+
+  /** Side passages need no hand: the way is simply free from now on. */
+  private openPassages() {
+    for (const d of DOORS) if (d.sprite === 'none' && d.id !== 'secret' && d.lock.type === 'flag' && this.has(d.lock.flag) && !this.grid.doorOpen(d.id)) this.openDoor(d.id);
+  }
+
   private openSecret(silent: boolean) {
     this.grid.openDoor('secret');
     this.grid.removeSolid('secret_shelf');
@@ -572,6 +624,8 @@ export class School extends Phaser.Scene {
 
   private powerOn() {
     this.set('power');
+    this.openPassages();
+    this.wakeAides();
     this.propSprites.get('breakers')?.setFrame('breaker_on');
     this.audio.play('power_up');
     this.audio.loop('hum', 0.25);
@@ -594,6 +648,7 @@ export class School extends Phaser.Scene {
         }
         this.set(id);
         this.set(`reward:${id}`);
+        this.openPassages();
         await reward(ok);
         this.save();
       },
@@ -649,6 +704,7 @@ export class School extends Phaser.Scene {
     this.propSprites.get('exit')?.setFrame('exit_open');
     this.audio.play('door_open');
     this.mind.sleepAt(INVIGILATOR_HOME);
+    this.aides.forEach((a) => a.mind.sleepAt(a.home));
     this.save();
     await this.ui.talk(story.examDone(this.s.pages.length));
   }
@@ -748,6 +804,7 @@ export class School extends Phaser.Scene {
     this.audio.music(null);
     await this.ui.fade(true, 350);
     this.mind.relocate(INVIGILATOR_HOME, 6);
+    this.aides.filter((a) => a.mind.state !== 'DORMANT').forEach((a) => a.mind.relocate(a.home, 8));
     this.inv.setVisible(false);
     this.unhideSilently();
     await this.ui.talk(story.caught(this.session.data.student.firstName));
@@ -776,13 +833,13 @@ export class School extends Phaser.Scene {
         this.set('chaseTip');
         this.ui.toast(tr('Break his line of sight and hide'), 3200);
       }
-    } else if (previous === 'CHASE') this.audio.music('music_explore');
+    } else if (previous === 'CHASE' && !this.chased()) this.audio.music('music_explore');
     if (next === 'INVESTIGATE') this.ui.toast(tr('He heard something'), 1600);
   }
 
   private makeNoise(x: number, y: number, loud: number) {
     this.noise = Math.min(1, this.noise + loud / 420);
-    if (!this.study) this.mind.hear({ x, y }, loud);
+    if (!this.study) this.minds().forEach((m) => m.hear({ x, y }, loud));
   }
 
   private perceived() {
@@ -818,9 +875,9 @@ export class School extends Phaser.Scene {
   private async pause() {
     this.keys.clear();
     this.save();
-    const r = await this.ui.pause({ objectives: this.session.data.campaign.objectives, live: this.session.live, canLeave: true });
+    const r = await this.ui.pause({ objectives: this.session.data.campaign.objectives, canLeave: true });
     if (r === 'leave') {
-      const sure = await this.ui.choose(this.session.live ? tr('Hand in what you have answered so far?') : tr('Leave the game?'), [tr('Yes, leave'), tr('Stay')]);
+      const sure = await this.ui.choose(tr('Hand in what you have answered so far?'), [tr('Yes, leave'), tr('Stay')]);
       if (sure === 0) await this.end('LEFT', []);
     }
   }
@@ -864,7 +921,7 @@ export class School extends Phaser.Scene {
     this.chalkFly = c;
     this.tweens.add({ targets: c, x, y, angle: 720, duration: 520, onComplete: () => {
       this.audio.at('chalk_hit', x, y, this.player.x, this.player.y, 320);
-      if (!this.study) this.mind.hear({ x, y }, 260);
+      if (!this.study) this.minds().forEach((m) => m.hear({ x, y }, 260));
       c.destroy();
       this.chalkFly = null;
     } });
@@ -911,7 +968,7 @@ export class School extends Phaser.Scene {
 
     // Reading a note or a dialogue never gets a player caught; questions can keep the clock running.
     const worldRuns = free || (this.ui.busy && !this.frozen && !this.over && !this.game_.pauseOnQuestion && document.querySelector('.desk'));
-    if (worldRuns && !this.study) this.mind.update(free ? dt : dt * 0.5, this.perceived());
+    if (worldRuns && !this.study) for (const m of this.minds()) if (!this.frozen) m.update(free ? dt : dt * 0.5, this.perceived());
     this.drawInvigilator(dt);
     this.drainTorch(free ? dt : 0);
     this.noise = Math.max(0, this.noise - dt * 0.6);
@@ -1025,7 +1082,7 @@ export class School extends Phaser.Scene {
       const route = goal && this.grid.path(this.player.x, this.player.y - 4, goal.x, goal.y + 10, true);
       this.guideTo = route?.length ? route[Math.min(route.length - 1, 4)] : null;
     }
-    const show = settings.guide && Boolean(this.guideTo) && !this.hidden && this.mind.state !== 'CHASE';
+    const show = settings.guide && Boolean(this.guideTo) && !this.hidden && !this.chased();
     this.guide.setVisible(show);
     if (!show || !this.guideTo) return;
     const a = Math.atan2(this.guideTo.y - this.player.y, this.guideTo.x - this.player.x);
@@ -1090,10 +1147,12 @@ export class School extends Phaser.Scene {
       this.inv.anims.stop();
       this.inv.setFrame({ down: 0, side: 8, up: 16 }[dir] + (set === 'mark' ? 4 : 0));
     }
-    const d = shown && !this.study ? Math.hypot(m.pos.x - this.player.x, m.pos.y - this.player.y) : 999;
-    const want = m.state === 'DORMANT' ? 0 : Phaser.Math.Clamp(1 - d / 190, 0, 1) * (m.state === 'CHASE' ? 1 : 0.75) * (this.game_.tension === 'CALM' ? 0.5 : 1);
+    this.aides.forEach((a) => this.drawAide(a));
+    const awake = this.minds().filter((x) => x.state !== 'DORMANT');
+    const d = shown && !this.study ? Math.min(999, ...awake.map((x) => Math.hypot(x.pos.x - this.player.x, x.pos.y - this.player.y))) : 999;
+    const want = !awake.length ? 0 : Phaser.Math.Clamp(1 - d / 190, 0, 1) * (this.chased() ? 1 : 0.75) * (this.game_.tension === 'CALM' ? 0.5 : 1);
     this.dread += (want - this.dread) * Math.min(1, dt * 2);
-    this.audio.loop('music_tension', this.over ? 0 : m.state === 'CHASE' ? 0 : this.dread > 0.25 ? this.dread * 0.9 : 0);
+    this.audio.loop('music_tension', this.over ? 0 : this.chased() ? 0 : this.dread > 0.25 ? this.dread * 0.9 : 0);
     this.penT -= dt;
     if (d < 240 && this.penT <= 0 && m.state !== 'DORMANT') {
       this.penT = 2.5 + Math.random() * 1.5;
@@ -1103,6 +1162,20 @@ export class School extends Phaser.Scene {
     if (this.dread > 0.45 && this.heartT <= 0 && !this.over) {
       this.heartT = 1.3 - this.dread * 0.6;
       this.audio.play('heart', this.dread * 0.5);
+    }
+  }
+
+  private drawAide({ mind: m, sprite }: School['aides'][number]) {
+    const shown = m.state !== 'DORMANT';
+    sprite.setVisible(shown);
+    if (!shown) return;
+    const dir = Math.abs(m.facing.x) > Math.abs(m.facing.y) ? 'side' : m.facing.y < 0 ? 'up' : 'down';
+    const set = m.state === 'CHASE' ? 'mark' : 'inv';
+    sprite.setPosition(Math.round(m.pos.x), Math.round(m.pos.y + 4)).setDepth(m.pos.y + 2).setFlipX(dir === 'side' && m.facing.x < 0);
+    if (m.moving) sprite.anims.play(`${set}_${dir}`, true);
+    else {
+      sprite.anims.stop();
+      sprite.setFrame({ down: 0, side: 8, up: 16 }[dir] + (set === 'mark' ? 4 : 0));
     }
   }
 
@@ -1166,6 +1239,7 @@ export class School extends Phaser.Scene {
     }
     if (this.inv.visible && this.mind.state === 'CHASE') list.push({ x: this.mind.pos.x, y: this.mind.pos.y - 34, r: 56, color: [0.9, 0.3, 0.28], power: 0.7 });
     else if (this.inv.visible) list.push({ x: this.mind.pos.x, y: this.mind.pos.y - 40, r: 34, color: [0.6, 0.58, 0.48], power: 0.55 });
+    for (const a of this.aides) if (a.sprite.visible && near(a.mind.pos.x, a.mind.pos.y, 50)) extra.push({ x: a.mind.pos.x, y: a.mind.pos.y - 32, r: a.mind.state === 'CHASE' ? 50 : 30, color: a.mind.state === 'CHASE' ? [0.9, 0.3, 0.28] : [0.5, 0.55, 0.7], power: 0.6 });
     extra.sort((a, b) => Math.hypot(a.x - px, a.y - py) - Math.hypot(b.x - px, b.y - py));
     this.pipe.lights = [...list, ...extra].slice(0, 12);
     const room = this.grid.roomAt(this.player.x, this.player.y - 2);

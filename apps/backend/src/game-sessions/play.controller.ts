@@ -1,12 +1,13 @@
 import { Body, Controller, createParamDecorator, ExecutionContext, Get, HttpCode, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { z } from 'zod';
-import { checkpointSchema, completeSchema, exchangeSchema, hintSchema, playAnswerSchema, type CompleteInput, type PlayAnswerInput } from '@last-lesson/validation';
+import { checkpointSchema, completeSchema, exchangeSchema, guestSchema, hintSchema, playAnswerSchema, type CompleteInput, type PlayAnswerInput } from '@last-lesson/validation';
 import type { Locale } from '@last-lesson/scenario';
 import { Lang } from '../common/decorators';
 import { RateLimit, RateLimitGuard } from '../common/rate-limit';
 import { zodPipe } from '../common/zod-validation.pipe';
 import { GameTokenGuard, type GameClaims } from './game-token.guard';
+import { GameSessionsService } from './game-sessions.service';
 import { PlayService } from './play.service';
 
 const Game = createParamDecorator((_: unknown, ctx: ExecutionContext): GameClaims => ctx.switchToHttp().getRequest().game);
@@ -15,7 +16,19 @@ const Game = createParamDecorator((_: unknown, ctx: ExecutionContext): GameClaim
 @ApiTags('play')
 @Controller('play')
 export class PlayController {
-  constructor(private readonly service: PlayService) {}
+  constructor(
+    private readonly service: PlayService,
+    private readonly sessions: GameSessionsService,
+  ) {}
+
+  @Post('guest')
+  @HttpCode(200)
+  @UseGuards(RateLimitGuard)
+  @RateLimit('guest', 60, 600)
+  @ApiOperation({ summary: 'Play the official campaign without an account. Returns a one-time launch link.' })
+  guest(@Body(zodPipe(guestSchema)) body: { name?: string }) {
+    return this.sessions.guest(body.name ?? 'Student');
+  }
 
   @Post('exchange')
   @HttpCode(200)

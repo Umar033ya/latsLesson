@@ -18,6 +18,12 @@ export class AnalyticsController {
     return this.service.platform();
   }
 
+  @Get('centers')
+  @Auth(Role.SUPER_ADMIN)
+  centers() {
+    return this.service.centers();
+  }
+
   @Get('organization')
   @Auth(Role.SUPER_ADMIN, Role.CENTER_ADMIN)
   organization(@CurrentUser() user: Actor, @Query('organizationId', OptionalIdPipe) organizationId?: string, @Query('groupId', OptionalIdPipe) groupId?: string, @Query('days') days?: string) {

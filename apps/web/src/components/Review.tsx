@@ -8,7 +8,7 @@ export function Review({ answers, dark }: { answers: any[]; dark?: boolean }) {
   return (
     <ol className="space-y-3">
       {answers.map((a, i) => (
-        <li key={i} className={dark ? `rounded-xl border-l-4 bg-night-2 p-5 ${a.isCorrect ? 'border-[#4c7763]' : 'border-[#b23a3f]'}` : `rounded-xl border-l-4 bg-sheet p-5 ${a.isCorrect ? 'border-moss' : 'border-pencil'}`}>
+        <li key={i} className={dark ? `rounded-xl border-l-4 bg-night-2 p-5 ${a.isCorrect ? 'border-[#5a86f0]' : 'border-[#b23a3f]'}` : `rounded-xl border-l-4 bg-sheet p-5 ${a.isCorrect ? 'border-moss' : 'border-pencil'}`}>
           <p className={dark ? 'text-sm text-fog' : 'text-sm text-soft'}>{tr(a.gate)}. {[tr(a.subject), a.topic && tr(a.topic)].filter(Boolean).join(', ')}. {tr(QUESTION_TYPE_LABELS[a.type as QuestionKind])}</p>
           <p className="my-1 font-semibold">{a.prompt}</p>
           <p><span>{a.isCorrect ? tr('Correct') : tr('Answer given')}</span>: {describeAnswer(a.type, a.options, a.answer)}</p>

@@ -319,6 +319,8 @@ export interface PlaySession {
   expiresAt: string;
   checkpoint: { seq: number; state: unknown } | null;
   status: 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED';
+  /** Played without an account: the result belongs to nobody's profile. */
+  guest: boolean;
   /** Present when the session belongs to a room. */
   lobby: { id: string; title: string; playerId: string; nickname: string; color: number; elapsedMs: number } | null;
 }

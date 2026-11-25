@@ -10,21 +10,21 @@
 
 @layer base {
   :root {
-    --paper: 241 244 240; --sheet: 255 255 255; --well: 246 248 245; --rule: 221 228 221; --ink: 23 38 36; --soft: 90 107 103;
-    --accent: 18 88 74; --accent-ink: 255 255 255; --accent-soft: 224 240 233;
+    --paper: 241 244 250; --sheet: 255 255 255; --well: 245 248 253; --rule: 218 225 238; --ink: 18 28 52; --soft: 86 99 126;
+    --accent: 37 88 214; --accent-ink: 255 255 255; --accent-soft: 225 234 255;
     --pencil: 190 52 62; --pencil-dark: 146 32 44; --pencil-pale: 251 231 230;
     --amber: 196 127 23; --amber-dark: 122 74 12; --amber-pale: 253 240 216;
-    --moss: 24 112 79; --moss-pale: 220 243 231; --sky: 38 98 138; --sky-pale: 224 238 247;
-    --s1: 11 138 99; --s2: 196 127 23; --track: 228 234 227;
+    --moss: 29 78 190; --moss-pale: 222 232 255; --sky: 52 92 150; --sky-pale: 227 236 247;
+    --s1: 37 88 214; --s2: 196 127 23; --track: 224 231 243;
     color-scheme: light;
   }
   :root[data-theme='night'] {
-    --paper: 13 17 22; --sheet: 21 27 34; --well: 27 34 43; --rule: 43 53 65; --ink: 232 238 236; --soft: 151 167 170;
+    --paper: 11 15 27; --sheet: 19 25 42; --well: 26 33 53; --rule: 42 52 80; --ink: 232 237 248; --soft: 152 165 192;
     --accent: 224 168 72; --accent-ink: 20 16 8; --accent-soft: 58 47 28;
     --pencil: 224 100 98; --pencil-dark: 245 150 142; --pencil-pale: 66 31 33;
     --amber: 224 168 72; --amber-dark: 243 205 132; --amber-pale: 59 46 24;
-    --moss: 110 200 160; --moss-pale: 24 55 45; --sky: 126 186 224; --sky-pale: 25 47 63;
-    --s1: 31 163 124; --s2: 192 122 28; --track: 39 48 59;
+    --moss: 134 170 255; --moss-pale: 27 44 88; --sky: 126 186 224; --sky-pale: 25 47 63;
+    --s1: 92 138 245; --s2: 192 122 28; --track: 38 48 74;
     color-scheme: dark;
   }
   html { @apply bg-paper text-ink; }
@@ -56,6 +56,12 @@
   .nbtn-line { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-[15px] font-semibold text-bone transition hover:border-lamp/60 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50; }
   .nfield { @apply w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-bone transition placeholder:text-fog/40 focus:border-lamp focus:outline-none focus:ring-4 focus:ring-lamp/15; }
   .npanel { @apply rounded-2xl border border-white/10 bg-night-2/80 backdrop-blur; }
+  .top-link { @apply font-semibold text-bone underline-offset-4 hover:underline; text-shadow: 0 1px 0 #0a0c13; }
+  .pass { @apply w-full border-t-[10px] border-[#7c2230] bg-[#efe6cc] px-6 pb-6 pt-5 text-[#2b2233] shadow-[0_24px_70px_-16px_#000] sm:px-8; }
+  .pass-title { @apply text-2xl font-bold leading-tight text-[#7c2230]; }
+  .pass-field { @apply mt-4 w-full border-0 border-b-2 border-[#8fa3c8] bg-transparent px-1 py-2.5 text-lg text-[#2b2233] placeholder:text-[#2b2233]/35 focus:border-[#2558d6] focus:outline-none; }
+  .pass-btn { @apply block w-full border-b-4 border-[#173a9a] bg-[#2558d6] py-3 text-lg font-bold text-white transition-colors hover:bg-[#1d4bbb] disabled:opacity-60; }
+  .pass-link { @apply font-semibold text-[#173a9a] underline underline-offset-4 hover:text-[#7c2230]; }
   .ntitle { @apply text-balance text-[30px] font-bold leading-tight tracking-[-0.01em] text-bone; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

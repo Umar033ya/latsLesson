@@ -1,6 +1,6 @@
 /** The school, described as rooms, doors and furniture. No Phaser types: this module is unit tested. */
 export const TILE = 16;
-export const COLS = 98;
+export const COLS = 126;
 export const ROWS = 55;
 
 export type FloorKind = 'wood' | 'hall' | 'tile' | 'concrete' | 'carpet' | 'gym';
@@ -18,7 +18,7 @@ export interface Room {
 }
 
 export const ROOMS: Room[] = [
-  { id: 'hall', name: 'East corridor', x: 4, y: 24, w: 88, h: 4, floor: 'hall', wall: 'hall' },
+  { id: 'hall', name: 'East corridor', x: 4, y: 24, w: 118, h: 4, floor: 'hall', wall: 'hall' },
   { id: 'class', name: 'Room 9-B', x: 6, y: 12, w: 16, h: 9, floor: 'wood', wall: 'class' },
   { id: 'library', name: 'Library', x: 27, y: 10, w: 18, h: 11, floor: 'carpet', wall: 'library' },
   { id: 'archive', name: 'The archive', x: 49, y: 14, w: 6, h: 7, floor: 'concrete', wall: 'brick' },
@@ -29,7 +29,10 @@ export const ROOMS: Room[] = [
   { id: 'cloak', name: 'Cloakroom', x: 40, y: 32, w: 9, h: 9, floor: 'tile', wall: 'lab' },
   { id: 'gym', name: 'Assembly hall', x: 54, y: 32, w: 18, h: 12, floor: 'gym', wall: 'hall' },
   { id: 'lobby', name: 'Main lobby', x: 77, y: 32, w: 15, h: 12, floor: 'hall', wall: 'hall' },
-  { id: 'back', name: 'Service corridor', x: 6, y: 48, w: 86, h: 3, floor: 'concrete', wall: 'brick' },
+  { id: 'music', name: 'Music room', x: 96, y: 12, w: 12, h: 9, floor: 'wood', wall: 'class' },
+  { id: 'reading', name: 'Reading room', x: 111, y: 11, w: 11, h: 10, floor: 'carpet', wall: 'library' },
+  { id: 'canteen', name: 'Canteen', x: 96, y: 32, w: 20, h: 11, floor: 'tile', wall: 'lab' },
+  { id: 'back', name: 'Service corridor', x: 6, y: 48, w: 112, h: 3, floor: 'concrete', wall: 'brick' },
 ];
 
 /** What has to be true before a door opens. */
@@ -66,6 +69,17 @@ export const DOORS: Door[] = [
   { id: 'b_maths', x: 30, y: 41, len: 7, axis: 'v', sprite: 'none', lock: none, leads: 'back' },
   { id: 'b_gym', x: 60, y: 44, len: 4, axis: 'v', sprite: 'none', lock: none, leads: 'back' },
   { id: 'b_lobby', x: 88, y: 44, len: 4, axis: 'v', sprite: 'gate', lock: item('clapper', 'Barred from the other side.'), leads: 'lobby' },
+  { id: 'd_music', x: 101, y: 21, len: 3, axis: 'v', sprite: 'door', lock: none, leads: 'music' },
+  { id: 'd_reading', x: 116, y: 21, len: 3, axis: 'v', sprite: 'door', lock: none, leads: 'reading' },
+  { id: 'd_canteen', x: 104, y: 28, len: 4, axis: 'v', sprite: 'door', lock: none, leads: 'canteen' },
+  { id: 'b_canteen', x: 112, y: 43, len: 5, axis: 'v', sprite: 'gate', lock: flag('power', noPower), leads: 'canteen' },
+  // Side passages: a room has more than one way out. They open by themselves once their lock is satisfied.
+  { id: 's_music', x: 108, y: 16, len: 3, axis: 'h', sprite: 'none', lock: none, leads: 'music' },
+  { id: 's_class', x: 22, y: 16, len: 5, axis: 'h', sprite: 'none', lock: flag('blackboard', ''), leads: 'library' },
+  { id: 's_boiler', x: 18, y: 36, len: 4, axis: 'h', sprite: 'none', lock: flag('power', ''), leads: 'boiler' },
+  { id: 's_maths', x: 35, y: 36, len: 5, axis: 'h', sprite: 'none', lock: flag('power', ''), leads: 'cloak' },
+  { id: 's_cloak', x: 49, y: 34, len: 5, axis: 'h', sprite: 'none', lock: flag('power', ''), leads: 'cloak' },
+  { id: 's_staff', x: 73, y: 17, len: 4, axis: 'h', sprite: 'none', lock: flag('reward:typewriter', ''), leads: 'biology' },
   { id: 'secret', x: 45, y: 18, len: 4, axis: 'h', sprite: 'none', lock: flag('secret', 'A shelf of registers. Cold air comes from behind it.'), leads: 'archive' },
 ];
 
@@ -228,6 +242,42 @@ on('bench', 89.4, 40.6, { solid: [32, 8] });
 on('papers_0', 82, 39.6, { flat: true });
 on('papers_2', 87.6, 38.6, { flat: true });
 
+/* Music room */
+wall('blackboard', 102, 12, 4);
+wall('window', 97.6, 12, 0, { id: 'window' });
+wall('window', 106.2, 12, 0, { id: 'window' });
+on('piano', 105, 14.6, { solid: [50, 16], tall: true });
+for (const [n, x] of [98, 101, 104].entries()) on(n % 2 ? 'chair' : 'desk_empty', x, 17.4, { solid: [n % 2 ? 10 : 18, n % 2 ? 6 : 10] });
+on('bench', 99, 19.4, { solid: [32, 8] });
+on('wardrobe', 96.8, 20.5, { solid: [18, 10], tall: true, id: 'hide' });
+on('plant', 107.3, 20.4, { solid: [12, 8] });
+on('papers_0', 103, 19, { flat: true });
+
+/* Reading room */
+wall('portrait', 114, 11, 8);
+wall('clock', 118.4, 11, 14);
+for (const [n, x] of [112.2, 115, 118, 120.8].entries()) on(`shelf_${n % 3}`, x, 12.4, { solid: [32, 10], tall: true });
+for (const y of [15.4, 18.4]) on('desk', 116.5, y, { solid: [18, 10] });
+on('globe', 120.6, 18.6, { solid: [12, 6] });
+on('wardrobe', 121.2, 20.5, { solid: [18, 10], tall: true, id: 'hide' });
+on('papers_2', 114, 18, { flat: true });
+
+/* Canteen */
+wall('banner', 106, 32, 2);
+wall('clock', 112, 32, 14);
+for (const x of [98, 100.4]) on('sink', x, 33.2, { solid: [18, 8] });
+for (const y of [36, 39]) for (const x of [99.5, 108.5, 112.5]) on('bench', x, y, { solid: [32, 8] });
+on('crates', 114.4, 34, { solid: [30, 12], tall: true });
+on('locker', 96.8, 33, { solid: [16, 12], id: 'hide' });
+on('wardrobe', 96.9, 42.4, { solid: [18, 10], tall: true, id: 'hide' });
+on('plant', 115.3, 42.2, { solid: [12, 8] });
+
+/* East end of the corridor */
+for (const x of [94, 98, 108, 113, 119]) wall(x % 2 ? 'window' : 'board', x + 0.4, 24, x % 2 ? 0 : 6, x % 2 ? { id: 'window' } : {});
+wall('portrait', 105, 24, 8);
+for (const x of [106.6, 107.65]) on('locker', x, 24.35, { solid: [16, 6], id: 'hide' });
+on('bench', 111, 24.6, { solid: [32, 8] });
+
 /* Service corridor */
 for (const x of [14, 24, 38, 52, 70, 80]) wall('pipes', x, 48, 20);
 on('crates', 20, 48.9, { solid: [30, 10] });
@@ -255,16 +305,28 @@ export const LAMPS: Array<{ x: number; y: number; power: boolean; r: number; fli
   { x: T(63), y: T(36), power: true, r: 120 },
   { x: T(84), y: T(36), power: true, r: 120 },
   { x: T(84), y: T(14.5), power: true, r: 92 },
+  { x: T(102), y: T(14), power: false, r: 92 },
+  { x: T(116), y: T(14), power: true, r: 88 },
+  { x: T(106), y: T(35), power: true, r: 110 },
+  { x: T(102), y: T(25), power: true, r: 124 },
+  { x: T(116), y: T(25), power: true, r: 124, flicker: true },
 ];
 
 export const WAYPOINTS: Array<{ x: number; y: number; room: string }> = [
-  [8, 26, 'hall'], [17, 26, 'hall'], [26, 26, 'hall'], [36, 26, 'hall'], [47, 26, 'hall'], [57, 26, 'hall'], [67, 26, 'hall'], [78, 26, 'hall'], [89, 26, 'hall'],
+  [8, 26, 'hall'], [17, 26, 'hall'], [26, 26, 'hall'], [36, 26, 'hall'], [47, 26, 'hall'], [57, 26, 'hall'], [67, 26, 'hall'], [78, 26, 'hall'], [89, 26, 'hall'], [100, 26, 'hall'], [112, 26, 'hall'],
+  [101, 19, 'music'], [114, 19, 'reading'], [105, 41, 'canteen'],
   [33, 19, 'library'], [39, 14, 'library'], [65, 17, 'biology'], [83, 16, 'staff'], [11, 37, 'boiler'], [28, 40, 'maths'], [44, 39, 'cloak'], [62, 41, 'gym'], [57, 35, 'gym'], [84, 41, 'lobby'],
-  [12, 49, 'back'], [28, 49, 'back'], [44, 49, 'back'], [60, 49, 'back'], [72, 49, 'back'], [86, 49, 'back'],
+  [12, 49, 'back'], [28, 49, 'back'], [44, 49, 'back'], [60, 49, 'back'], [72, 49, 'back'], [86, 49, 'back'], [104, 49, 'back'],
 ].map(([x, y, room]) => ({ x: T(x as number) + 8, y: T(y as number) + 8, room: room as string }));
 
 export const START = { x: T(16.6), y: T(18.5) };
 export const DETENTION = { x: T(13), y: T(17) };
+/** Where the assistants wait: behind different doors, so nobody knows which one opens next. */
+export const ASSISTANT_HOMES = [
+  { x: T(105) + 8, y: T(41), door: 'd_canteen' },
+  { x: T(44) + 8, y: T(35), door: 'd_cloak' },
+  { x: T(101) + 8, y: T(19), door: 'd_music' },
+];
 export const INVIGILATOR_HOME = { x: T(89) + 8, y: T(26) + 8 };
 
 export class Grid {

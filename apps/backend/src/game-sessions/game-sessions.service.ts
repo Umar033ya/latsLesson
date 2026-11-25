@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Campaign, Prisma } from '@prisma/client';
-import type { Branding, ContentConfig, GameplayConfig, SectionId } from '@last-lesson/scenario';
+import { DEFAULT_CONTENT, type Branding, type ContentConfig, type GameplayConfig, type SectionId } from '@last-lesson/scenario';
 import { PrismaService } from '../common/prisma.service';
 import { AuditService } from '../common/audit.service';
 import { AccessService, type OrgWithPlan } from '../common/access.service';
@@ -8,6 +8,7 @@ import { ApiException, notFound } from '../common/errors';
 import { randomOpaqueToken, sha256 } from '../common/crypto.util';
 import { studentOrg, type Actor } from '../common/actor';
 import { CampaignsService } from '../campaigns/campaigns.service';
+import { LevelsService } from '../campaigns/levels.service';
 import { QuestionPicker } from '../campaigns/question-picker';
 import { PlayService } from './play.service';
 
@@ -22,6 +23,8 @@ export interface SessionConfig {
 }
 
 const TICKET_SECONDS = 120;
+/** Guests without a room are removed after this time, together with their sessions. */
+const GUEST_HOURS = 48;
 
 @Injectable()
 export class GameSessionsService {
@@ -31,6 +34,7 @@ export class GameSessionsService {
     private readonly access: AccessService,
     private readonly campaigns: CampaignsService,
     private readonly picker: QuestionPicker,
+    private readonly levels: LevelsService,
     private readonly play: PlayService,
   ) {}
 
@@ -40,10 +44,12 @@ export class GameSessionsService {
     const platform = await this.access.platform();
     if (!platform.gameEnabled) throw new ApiException('GAME_DISABLED', platform.maintenanceMessage || 'The game is closed for maintenance', 503);
     const membership = await this.prisma.membership.findUniqueOrThrow({ where: { userId_organizationId: { userId: actor.id, organizationId } } });
-    const campaign = await this.prisma.campaign.findFirst({ where: { id: input.campaignId, AND: [this.campaigns.availableWhere(organizationId, membership.groupId, this.access.settings(org).allowOfficialCampaigns)] } });
+    const available = await this.prisma.campaign.findMany({ where: this.campaigns.availableWhere(organizationId, membership.groupId, this.access.settings(org).allowOfficialCampaigns) });
+    const campaign = available.find((c) => c.id === input.campaignId);
     if (!campaign) throw new ApiException('CAMPAIGN_UNAVAILABLE', 'This campaign is not available to you right now', 403);
 
     await this.play.finalizeExpired({ userId: actor.id });
+    await this.levels.assertOpen(campaign, available, actor.id, organizationId, membership.startLevels);
     const open = await this.prisma.gameSession.findFirst({ where: { userId: actor.id, campaignId: campaign.id, organizationId, lobbyId: null, status: 'IN_PROGRESS' } });
     if (open) return this.ticket(open.id, actor.id, true);
 
@@ -69,15 +75,17 @@ export class GameSessionsService {
   }
 
   /** Chooses the questions and freezes the configuration. One-player games and rooms both start here. */
-  async prepare(campaign: Campaign, org: OrgWithPlan, avoid: { practiced?: string[]; recent?: string[] } = {}) {
+  async prepare(campaign: Campaign, org: OrgWithPlan | null, avoid: { practiced?: string[]; recent?: string[] } = {}) {
     const config = this.campaigns.config(campaign);
-    const gameplay = await this.access.gameplay(org, config.gameplay);
-    const slots = await this.picker.pick(config, org.id, avoid, gameplay.hidingQuestions && gameplay.mode === 'STORY');
+    const gameplay = await this.access.gameplay(org ?? { settings: {} }, config.gameplay);
+    const review = await this.levels.reviewTopics(campaign);
+    const slots = await this.picker.pick(config, org?.id ?? null, { ...avoid, review }, gameplay.hidingQuestions && gameplay.mode === 'STORY');
     if (!slots.length) throw new ApiException('NO_QUESTIONS', 'This campaign has no questions yet. Tell your teacher.', 409);
-    const branding = await this.access.branding(org);
+    const platform = await this.access.platform();
+    const branding: Branding = org ? await this.access.branding(org) : { displayName: platform.platformName, logoUrl: null, accent: '#e0a848', theme: platform.allowedThemes[0] };
     const snapshot: SessionConfig = {
       gameplay,
-      content: await this.access.content(org, config.content),
+      content: org ? await this.access.content(org, config.content) : { ...DEFAULT_CONTENT, ...config.content },
       branding: { ...branding, theme: config.theme ?? branding.theme },
       sections: config.sections,
       objectives: config.objectives,
@@ -85,6 +93,20 @@ export class GameSessionsService {
     };
     const data = { questionIds: slots.map((s) => s.questionId), slots: slots as unknown as Prisma.InputJsonValue, config: snapshot as unknown as Prisma.InputJsonValue };
     return { data, gameplay };
+  }
+
+  /** Anyone may try the official campaign. The session is graded here like any other and belongs to a throwaway guest. */
+  async guest(name: string) {
+    const platform = await this.access.platform();
+    if (!platform.gameEnabled) throw new ApiException('GAME_DISABLED', platform.maintenanceMessage || 'The game is closed for maintenance', 503);
+    await this.prisma.user.deleteMany({ where: { isGuest: true, lobbyPlayers: { none: {} }, createdAt: { lt: new Date(Date.now() - GUEST_HOURS * 3_600_000) } } });
+    const official = await this.prisma.campaign.findMany({ where: { organizationId: null, status: 'PUBLISHED' }, orderBy: { createdAt: 'asc' } });
+    const campaign = official.find((c) => !this.campaigns.config(c).level);
+    if (!campaign) throw new ApiException('NO_QUESTIONS', 'There is no open campaign yet', 409);
+    const { data, gameplay } = await this.prepare(campaign, null);
+    const user = await this.prisma.user.create({ data: { firstName: name, lastName: '', role: 'GAMER', isGuest: true } });
+    const session = await this.prisma.gameSession.create({ data: { ...data, userId: user.id, campaignId: campaign.id, expiresAt: new Date(Date.now() + Math.max(120, gameplay.sessionMinutes * 4) * 60_000) } });
+    return this.ticket(session.id, user.id, false);
   }
 
   async resume(sessionId: string, actor: Actor) {

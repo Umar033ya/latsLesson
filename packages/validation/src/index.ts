@@ -107,7 +107,7 @@ export const platformSettingsSchema = z.object({
   maintenanceMessage: z.string().trim().max(300).default(''),
   gameEnabled: z.boolean().default(true),
   centerSignup: z.boolean().default(true),
-  studentSignup: z.boolean().default(true),
+  studentSignup: z.boolean().default(false),
   trialDays: z.number().int().min(1).max(365).default(30),
   allowedTensions: z.array(z.enum(TENSIONS)).min(1).default([...TENSIONS]),
   allowedThemes: z.array(z.enum(THEME_IDS)).min(1).default([...THEME_IDS]),
@@ -175,7 +175,7 @@ export const studentSchema = z.object({
   accessExpiresAt: optionalDate,
   note: z.string().trim().max(500).nullable().optional(),
 });
-export const updateStudentSchema = studentSchema.extend({ lastName: z.string().trim().max(80) }).partial().extend({ status: z.enum(['ACTIVE', 'INACTIVE']).optional() });
+export const updateStudentSchema = studentSchema.extend({ lastName: z.string().trim().max(80) }).partial().extend({ status: z.enum(['ACTIVE', 'INACTIVE']).optional(), startLevels: z.record(uuid, z.number().int().min(1).max(10)).optional() });
 export const bulkStudentsSchema = z.object({ students: z.array(studentSchema).min(1).max(200), generateCodes: z.boolean().default(true) });
 export const createInvitationSchema = z.object({
   organizationId: uuid.optional(),
@@ -299,6 +299,8 @@ export const campaignConfigSchema = z.object({
   gameplay: gameplayOverrideSchema.prefault({}),
   content: contentOverrideSchema.prefault({}),
   theme: z.enum(THEME_IDS).nullable().default(null),
+  /** Makes the campaign a step on the level map of a subject. */
+  level: z.object({ subjectId: uuid, number: z.number().int().min(1).max(10) }).nullable().default(null),
 });
 export type CampaignConfig = z.infer<typeof campaignConfigSchema>;
 export const campaignSchema = z
@@ -322,6 +324,8 @@ export const practiceAnswerSchema = z.object({ questionId: uuid, answer: z.unkno
 
 /* ---------- game sessions ---------- */
 export const launchSchema = z.object({ campaignId: uuid, preparationId: uuid.nullable().optional() });
+/** A game without an account. The name is only used in the dialogues. */
+export const guestSchema = z.object({ name: nicknameSchema.optional() });
 export const exchangeSchema = z.object({ ticket: z.string().min(20).max(200) });
 const requestId = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/);
 export const playAnswerSchema = z.object({

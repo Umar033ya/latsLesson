@@ -160,12 +160,12 @@ export function QuestionPreview({ q }: { q: { type: QuestionKind; prompt: string
   const [result, setResult] = useState<boolean | null>(null);
   const shown = presentOptions(q.type, q.options, `preview:${q.prompt}`, q.correctAnswer);
   return (
-    <div className="border-[6px] border-[#5c3f33] bg-[#1c3531] p-4 text-[#e9e6d2]">
+    <div className="border-[6px] border-[#5c3f33] bg-[#14265a] p-4 text-[#e9e6d2]">
       <p className="mb-3 font-dot text-xl">{q.prompt || tr('Your question')}</p>
       <AnswerControl dark type={q.type} options={shown} value={value} onChange={(v) => { setValue(v); setResult(null); }} />
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button type="button" className="nbtn !py-1.5" onClick={() => setResult(gradeAnswer(q.type, q.correctAnswer, value ?? (q.type === 'ORDERING' ? (shown as any).items.map((i: Opt) => i.id) : q.type === 'PUZZLE' ? (shown as any).dials.map((d: string[]) => d[0]) : undefined)))}>{tr('Try it')}</button>
-        {result !== null && <span role="status" className={result ? 'text-[#a9d0a2]' : 'text-[#f09a86]'}>{result ? tr('Correct') : tr('Not correct')}{q.explanation ? `. ${q.explanation}` : ''}</span>}
+        {result !== null && <span role="status" className={result ? 'text-[#a9c4ff]' : 'text-[#f09a86]'}>{result ? tr('Correct') : tr('Not correct')}{q.explanation ? `. ${q.explanation}` : ''}</span>}
       </div>
       {q.hint && <p className="mt-2 text-sm opacity-75">{tr('Hint for the student:')}{' '}{q.hint}</p>}
     </div>

@@ -31,7 +31,7 @@ export class AnalyticsService {
       this.prisma.campaign.count({ where: { status: 'PUBLISHED' } }),
       this.sessionsPerDay(Prisma.sql`s."startedAt" >= ${since}`),
       this.prisma.gameSession.groupBy({ by: ['organizationId'], where: { startedAt: { gte: since }, organizationId: { not: null } }, _count: { id: true }, orderBy: { _count: { id: 'desc' } }, take: 5 }),
-      this.prisma.gameSession.findMany({ where: { startedAt: { gte: weekAgo } }, distinct: ['userId'], select: { userId: true } }),
+      this.prisma.gameSession.findMany({ where: { startedAt: { gte: weekAgo }, user: { isGuest: false } }, distinct: ['userId'], select: { userId: true } }),
       this.prisma.gameSession.count({ where: { NOT: { flags: { isEmpty: true } }, startedAt: { gte: since } } }),
     ]);
     const names = new Map((await this.prisma.organization.findMany({ where: { id: { in: top.map((t) => t.organizationId!) } }, select: { id: true, name: true } })).map((o) => [o.id, o.name]));
@@ -50,6 +50,23 @@ export class AnalyticsService {
       sessionsPerDay: this.fillDays(perDay, 30),
       topCenters: top.map((t) => ({ id: t.organizationId, name: names.get(t.organizationId!) ?? '', sessions: t._count.id })),
     };
+  }
+
+  /** Education centers side by side. Rooms with guests count as games, guests never as students. */
+  async centers() {
+    return this.prisma.$queryRaw<Array<{ id: string; name: string; city: string | null; status: string; students: number; active: number; sessions: number; completed: number; accuracy: number | null; seconds: number | null; levels: number }>>`
+      SELECT o.id, o.name, o.city, o.status::text AS status,
+        (SELECT count(*) FROM "Membership" m WHERE m."organizationId" = o.id AND m.status = 'ACTIVE')::int AS students,
+        count(DISTINCT s."userId") FILTER (WHERE s."startedAt" > now() - interval '7 days' AND ${NOT_GUEST})::int AS active,
+        count(s.id)::int AS sessions,
+        count(s.id) FILTER (WHERE s.status = 'COMPLETED')::int AS completed,
+        round(avg(s.accuracy) FILTER (WHERE s.status = 'COMPLETED'))::int AS accuracy,
+        round(avg(s."durationSeconds") FILTER (WHERE s.status = 'COMPLETED'))::int AS seconds,
+        count(DISTINCT s."campaignId") FILTER (WHERE s.status = 'COMPLETED' AND c.config #>> '{level,number}' IS NOT NULL)::int AS levels
+      FROM "Organization" o
+      LEFT JOIN "GameSession" s ON s."organizationId" = o.id
+      LEFT JOIN "Campaign" c ON c.id = s."campaignId"
+      GROUP BY o.id ORDER BY accuracy DESC NULLS LAST, completed DESC LIMIT 100`;
   }
 
   async organization(organizationId: string, filter: { groupId?: string; days: number }) {

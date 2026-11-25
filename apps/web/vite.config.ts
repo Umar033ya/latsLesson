@@ -12,7 +12,7 @@ export default defineConfig({
         name: 'LAST LESSON',
         short_name: 'LAST LESSON',
         description: 'An educational mystery game for schools and learning centers.',
-        theme_color: '#1c3531',
+        theme_color: '#10235c',
         background_color: '#0a0c13',
         display: 'standalone',
         start_url: '/',

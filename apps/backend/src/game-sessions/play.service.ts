@@ -93,6 +93,7 @@ export class PlayService {
       expiresAt: (session.expiresAt ?? session.startedAt).toISOString(),
       checkpoint: session.checkpoint ? { seq: session.checkpointSeq, state: session.checkpoint } : null,
       status: session.status,
+      guest: session.user.isGuest,
       lobby:
         session.lobby && session.lobbyPlayer
           ? {

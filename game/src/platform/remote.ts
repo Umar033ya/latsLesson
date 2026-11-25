@@ -18,7 +18,6 @@ interface Pending {
 }
 
 export class RemoteSession implements GameSession {
-  readonly live = true;
   readonly room?: RoomLink;
   private seq: number;
   private queued: Record<string, unknown> | null = null;
@@ -44,9 +43,7 @@ export class RemoteSession implements GameSession {
     const ticket = new URLSearchParams(location.hash.slice(1)).get('ticket');
     if (ticket) {
       history.replaceState(null, '', location.pathname + location.search);
-      const { token, session } = await request<{ token: string; session: PlaySession }>('POST', '/play/exchange', { body: { ticket }, retries: 2 });
-      store.set(sessionStorage, TOKEN_KEY, token);
-      return new RemoteSession(session, token);
+      return RemoteSession.exchange(ticket);
     }
     const token = store.get(sessionStorage, TOKEN_KEY);
     if (!token) return null;
@@ -61,6 +58,18 @@ export class RemoteSession implements GameSession {
       if (error instanceof SessionError && error.fatal) store.del(sessionStorage, TOKEN_KEY);
       throw error;
     }
+  }
+
+  /** A night without an account. Questions and grading come from the server here too. */
+  static async guest(name: string): Promise<RemoteSession> {
+    const { launchUrl } = await request<{ launchUrl: string }>('POST', '/play/guest', { body: { name }, retries: 2 });
+    return RemoteSession.exchange(new URL(launchUrl).hash.replace('#ticket=', ''));
+  }
+
+  private static async exchange(ticket: string): Promise<RemoteSession> {
+    const { token, session } = await request<{ token: string; session: PlaySession }>('POST', '/play/exchange', { body: { ticket }, retries: 2 });
+    store.set(sessionStorage, TOKEN_KEY, token);
+    return new RemoteSession(session, token);
   }
 
   async answer(question: PlayQuestion, answer: unknown, elapsedMs: number): Promise<AnswerResponse> {

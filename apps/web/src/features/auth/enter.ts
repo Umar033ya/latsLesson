@@ -10,6 +10,7 @@ export function useEnter() {
     const me = await startSession(token);
     const saved = toLocale(me.locale);
     nav(homeOf(me));
-    if (!languageChosen() && saved !== getLanguage()) await setLanguage(saved, false);
+    // English is also what an account has before anybody chose, so it never overrides the language of the browser.
+    if (!languageChosen() && saved !== 'en' && saved !== getLanguage()) await setLanguage(saved, false);
   };
 }

@@ -41,7 +41,7 @@ Interface languages: English, Russian, Uzbek, switchable for every role and in t
 | --- | --- |
 | `pnpm test` | Unit and integration tests (API tests use the `lastlesson_test` database) |
 | `pnpm test:e2e` | Playwright: the whole journey in a real browser |
-| `node e2e/play.mjs <folder>` | Plays a night without signing in to the end and saves screenshots |
+| `python game/tools/logo.py` | Draws the logo, favicons and app icons from one pixel grid |
 | `pnpm typecheck`, `pnpm lint`, `pnpm build` | Checks and production builds |
 | `python game/tools/art.py`, `python game/tools/audio.py <packs>` | Regenerate art and audio |
 

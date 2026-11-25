@@ -75,14 +75,13 @@ interface Reply {
   firstName?: string;
 }
 
-/** Sign in or sign up with Google. A new person adds a code from a center, or the name of a new center. */
+/** Sign in or sign up with Google. A new person can only register a center. */
 export function GoogleSignIn({ onToken }: { onToken: (token: string) => Promise<void> }) {
   const options = useAuthOptions().data;
   const [pending, setPending] = useState<{ credential: string; email: string } | null>(null);
-  const [kind, setKind] = useState<'student' | 'center'>('student');
   const [value, setValue] = useState('');
   const send = useMutation({
-    mutationFn: (body: { credential: string; invitationCode?: string; centerName?: string }) => post<Reply>('/auth/google', { ...body, locale: getLanguage() }),
+    mutationFn: (body: { credential: string; centerName?: string }) => post<Reply>('/auth/google', { ...body, locale: getLanguage() }),
     onSuccess: async (r, body) => {
       if (r.accessToken) await onToken(r.accessToken);
       else setPending({ credential: body.credential, email: r.email ?? '' });
@@ -91,7 +90,7 @@ export function GoogleSignIn({ onToken }: { onToken: (token: string) => Promise<
   if (!options?.googleClientId) return null;
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (pending) send.mutate({ credential: pending.credential, ...(kind === 'student' ? { invitationCode: value } : { centerName: value }) });
+    if (pending) send.mutate({ credential: pending.credential, centerName: value });
   };
   return (
     <div className="mb-5">
@@ -99,14 +98,9 @@ export function GoogleSignIn({ onToken }: { onToken: (token: string) => Promise<
         <GoogleButton onCredential={(credential) => send.mutate({ credential })} />
       ) : (
         <form className="space-y-3 rounded-xl border border-rule bg-well p-4" onSubmit={submit}>
-          <p className="text-sm text-soft">{tr('{0} is new here. Who are you?', { 0: pending.email })}</p>
-          <div className="flex flex-wrap gap-4">
-            {(['student', 'center'] as const).map((k) => (
-              <label key={k} className="flex items-center gap-2"><input type="radio" name="google-kind" className="accent-[rgb(var(--accent))]" checked={kind === k} onChange={() => { setKind(k); setValue(''); }} />{k === 'student' ? tr('I am a student') : tr('I run an education center')}</label>
-            ))}
-          </div>
-          <input className="field" required minLength={kind === 'student' ? 6 : 2} maxLength={120} aria-label={kind === 'student' ? tr('Access code from your center') : tr('Center name')} placeholder={kind === 'student' ? 'LL-XXXX-XXXX' : tr('Center name')} value={value} onChange={(e) => setValue(e.target.value)} />
-          <button className="btn-main w-full" disabled={send.isPending}>{tr('Create account')}</button>
+          <p className="text-sm text-soft">{tr('{0} is new here. Name your education center to register it.', { 0: pending.email })}</p>
+          <input className="field" required minLength={2} maxLength={120} aria-label={tr('Center name')} placeholder={tr('Center name')} value={value} onChange={(e) => setValue(e.target.value)} />
+          <button className="btn-main w-full" disabled={send.isPending}>{tr('Register a center')}</button>
         </form>
       )}
       {send.error && <p className="mt-2 font-semibold text-pencil-dark" role="alert">{errorText(send.error)}</p>}

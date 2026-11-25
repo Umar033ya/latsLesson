@@ -14,7 +14,7 @@ export default {
         sky: { DEFAULT: v('sky'), pale: v('sky-pale') },
         s1: v('s1'), s2: v('s2'), track: v('track'),
         // Fixed: the sidebar and the student side look the same in both themes.
-        board: { DEFAULT: '#12302b', 2: '#1b423b', 3: '#2f6457', chalk: '#e4efe8', dim: '#9dbbaf' },
+        board: { DEFAULT: '#10235c', 2: '#1a337c', 3: '#2f52b4', chalk: '#e6edff', dim: '#a3b6e6' },
         night: { DEFAULT: '#0a0c13', 2: '#131826', 3: '#1e2738', 4: '#2f3c51' },
         bone: '#ece3c8', lamp: '#e0a848', fog: '#b4c3cc',
       },

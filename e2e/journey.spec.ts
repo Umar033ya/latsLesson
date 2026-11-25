@@ -240,18 +240,16 @@ test.describe.serial('the whole product', () => {
     expect(errors).toEqual([]);
   });
 
-  test('a student registers with a code, hides and answers, in Russian and Uzbek', async ({ page }) => {
-    await page.goto('/register');
+  test('a student enters with a code and a name, hides and answers, in Russian and Uzbek', async ({ page }) => {
+    await page.goto('/');
     await page.getByRole('button', { name: 'ru', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Создать аккаунт' })).toBeVisible();
-    await page.getByLabel('Код доступа от вашего центра').fill(groupCode);
+    await page.locator('#code').fill(groupCode);
+    await page.getByRole('button', { name: 'Войти', exact: true }).click();
     await page.getByLabel('Имя', { exact: true }).fill('Дилшод');
     await page.getByLabel('Фамилия').fill('Тест');
-    await page.getByLabel('E-mail').fill(`dilshod-${stamp}@example.org`);
-    await page.getByLabel('Пароль', { exact: true }).fill('Parol-12345');
-    await page.getByLabel('Повторите пароль').fill('Parol-12345');
-    await shot(page, 'register-ru');
-    await page.getByRole('button', { name: 'Создать аккаунт ученика' }).click();
+    await shot(page, 'name-ru');
+    await page.getByRole('button', { name: 'Вписать себя в журнал' }).click();
+    await page.getByRole('button', { name: 'Код записан' }).click();
     await expect(page.getByText('Добрый вечер, Дилшод.')).toBeVisible();
     await shot(page, 'student-home-ru');
     await page.locator('article', { hasText: 'Последний урок' }).getByRole('button', { name: 'Начать' }).click();
@@ -284,6 +282,19 @@ test.describe.serial('the whole product', () => {
     await page.keyboard.press('j');
     await expect(page.locator('.notebook')).toContainText('Daftar');
     await shot(page, 'notebook-uz');
+  });
+
+  test('anyone tries the game without an account, questions come from the server', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: 'Try the game' }).click();
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await page.waitForFunction(() => Boolean((window as any).__school?.player?.active));
+    const gates = () => page.evaluate(() => [...(window as any).__school.questions.keys()].filter((g: string) => !g.startsWith('hide')).length);
+    expect(await gates()).toBeGreaterThan(5);
+    await page.reload();
+    await page.getByRole('button', { name: /Return to the school|Take your seat/ }).click();
+    await page.waitForFunction(() => Boolean((window as any).__school?.player?.active));
+    expect(await gates()).toBeGreaterThan(5);
   });
 
   test('the center sees the result, another center does not', async ({ page }) => {

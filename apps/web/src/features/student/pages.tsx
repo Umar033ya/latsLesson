@@ -6,6 +6,8 @@ import clsx from 'clsx';
 import { THEMES } from '@last-lesson/scenario';
 import { AnswerControl } from '../../components/QuestionFields';
 import { Review } from '../../components/Review';
+import { LevelMap } from './LevelMap';
+import { chooseCourse, chosenCourse } from '../../lib/course';
 import { GoogleLink } from '../../components/GoogleLink';
 import { LanguagePicker } from '../../components/Preferences';
 import { Wordmark } from '../../components/Shell';
@@ -29,17 +31,17 @@ export function StudentLayout() {
   const nav = useNavigate();
   const me = useAuth((s) => s.me)!;
   return (
-    <div className="night pb-20 md:pb-0">
+    <div className="night pb-20 lg:pb-0">
       <header className="sticky top-0 z-30 border-b border-white/5 bg-night/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <Link to="/student" className="flex min-w-0 items-center gap-3">{home.data?.center.logoUrl && <img src={home.data.center.logoUrl} alt="" className="h-9 w-9 rounded-lg bg-white object-contain" />}<span className="min-w-0"><Wordmark className="block text-[30px] text-bone" /><span className="block truncate text-[13px] text-fog">{home.data?.center.displayName}</span></span></Link>
-          <nav className="hidden gap-1 rounded-2xl border border-white/10 bg-white/5 p-1 md:flex" aria-label={tr('Student')}>
+          <Link to="/student" className="flex min-w-0 items-center gap-3">{home.data?.center.logoUrl && <img src={home.data.center.logoUrl} alt="" className="h-9 w-9 rounded-lg bg-white object-contain" />}<span className="min-w-0"><Wordmark className="text-[26px] text-bone sm:text-[30px]" name="lg:hidden xl:inline" /><span className="block truncate text-[13px] text-fog lg:hidden xl:block">{home.data?.center.displayName}</span></span></Link>
+          <nav className="hidden gap-1 rounded-2xl border border-white/10 bg-white/5 p-1 lg:flex" aria-label={tr('Student')}>
             {NAV.map(([to, label, Icon]) => <NavLink key={to} end={to === '/student'} to={to} className={({ isActive }) => clsx('flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition', isActive ? 'bg-lamp text-night' : 'text-fog hover:text-bone')}><Icon size={16} aria-hidden="true" />{label}</NavLink>)}
           </nav>
-          <div className="flex items-center gap-2"><Avatar name={`${me.firstName} ${me.lastName}`} /><button className="rounded-xl p-2 text-fog hover:bg-white/10 hover:text-bone" aria-label={tr('Sign out')} title={tr('Sign out')} onClick={async () => { await signOut(); nav('/'); }}><LogOut size={18} /></button></div>
+          <div className="flex items-center gap-2.5"><span className="hidden min-w-0 text-right xl:block"><b className="block max-w-44 truncate text-sm text-bone">{me.firstName} {me.lastName}</b><span className="block max-w-44 truncate text-xs text-fog">{home.data?.center.displayName}</span></span><Avatar name={`${me.firstName} ${me.lastName}`} /><button className="rounded-xl p-2 text-fog hover:bg-white/10 hover:text-bone" aria-label={tr('Sign out')} title={tr('Sign out')} onClick={async () => { await signOut(); nav('/'); }}><LogOut size={18} /></button></div>
         </div>
       </header>
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-white/10 bg-night-2/95 backdrop-blur md:hidden" aria-label={tr('Student')}>
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-white/10 bg-night-2/95 backdrop-blur lg:hidden" aria-label={tr('Student')}>
         {NAV.map(([to, label, Icon]) => <NavLink key={to} end={to === '/student'} to={to} className={({ isActive }) => clsx('flex flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-semibold', isActive ? 'text-lamp' : 'text-fog')}><Icon size={20} aria-hidden="true" /><span className="max-w-full truncate">{label}</span></NavLink>)}
       </nav>
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6"><Suspense fallback={<p className="text-fog">{tr('Opening...')}</p>}><Outlet /></Suspense></main>
@@ -73,15 +75,16 @@ export function Home() {
             <div className="absolute inset-0 bg-cover bg-[70%_65%] [image-rendering:pixelated]" style={{ backgroundImage: 'url(/art/title.png)' }} aria-hidden="true" />
             <div className="absolute inset-0 bg-gradient-to-r from-night via-night/80 to-night/10" aria-hidden="true" />
             <div className="relative flex flex-wrap items-end justify-between gap-6 p-6 sm:p-9">
-              <div><h1 className="ntitle !text-[34px]">{tr('Good evening, {0}.', { 0: d.student.firstName })}</h1><p className="mt-1.5 max-w-[46ch] text-fog">{d.student.group ? `${d.student.group}. ` : ''}{tr('Your name is in the register. Choose where to start.')}</p></div>
+              <div><p className="mb-1 font-semibold text-lamp">{`${d.student.firstName} ${d.student.lastName}`.trim()}, {d.center.displayName}</p><h1 className="ntitle !text-[34px]">{tr('Good evening, {0}.', { 0: d.student.firstName })}</h1><p className="mt-1.5 max-w-[46ch] text-fog">{d.student.group ? `${d.student.group}. ` : ''}{tr('Your name is in the register. Choose where to start.')}</p></div>
               <Link className="nbtn" to="/join"><DoorOpen size={18} />{tr('Join a room')}</Link>
             </div>
           </section>
           <div className="mt-5 grid gap-4 sm:grid-cols-3"><Stat icon={Moon} label={tr('Finished nights')} value={d.summary.finished} /><Stat icon={Target} label={tr('Correct answers')} value={d.summary.averageAccuracy === null ? '0%' : `${d.summary.averageAccuracy}%`} /><Stat icon={Users} label={tr('Group')} value={d.student.group ?? tr('No group')} /></div>
           {d.maintenance && <p className="npanel mt-4 border-l-4 !border-l-lamp p-4">{d.maintenance}</p>}
           {d.announcement && <p className="npanel mt-4 border-l-4 !border-l-lamp p-4">{d.announcement}</p>}
-          {preparationId && <p className="npanel mt-4 border-l-4 !border-l-[#4c7763] p-4">{tr('You are prepared. The questions inside will not repeat your practice.')}</p>}
+          {preparationId && <p className="npanel mt-4 border-l-4 !border-l-[#5a86f0] p-4">{tr('You are prepared. The questions inside will not repeat your practice.')}</p>}
           {launch.error && <p className="mt-4 text-[#f09a86]" role="alert">{errorText(launch.error)}</p>}
+          <LevelMap paths={d.paths} busy={launch.isPending || Boolean(d.maintenance)} onPlay={(l) => launch.mutate({ campaignId: l.campaignId, preparationId })} />
           <h2 className="mb-4 mt-9 text-xl font-bold">{tr('Campaigns')}</h2>
           <div className="grid gap-5 lg:grid-cols-2">
             {d.campaigns.map((c: any, i: number) => {
@@ -174,7 +177,7 @@ function Practice({ guideId, p, n }: { guideId: string; p: any; n: number }) {
     <li className="npanel p-5">
       <p className="mb-3 text-lg">{n}. {p.prompt}</p>
       <AnswerControl dark type={p.type} options={p.options} value={value} onChange={(v) => { setValue(v); send.reset(); }} />
-      <div className="mt-3 flex flex-wrap items-center gap-3"><button className="nbtn-line" disabled={value === undefined || send.isPending} onClick={() => send.mutate()}>{tr('Check')}</button>{send.data && <span role="status" className={send.data.correct ? 'text-[#a9d0a2]' : 'text-[#f09a86]'}>{send.data.correct ? tr('Correct.') : tr('Not yet.')} {send.data.explanation}</span>}{send.error && <span className="text-[#f09a86]">{errorText(send.error)}</span>}</div>
+      <div className="mt-3 flex flex-wrap items-center gap-3"><button className="nbtn-line" disabled={value === undefined || send.isPending} onClick={() => send.mutate()}>{tr('Check')}</button>{send.data && <span role="status" className={send.data.correct ? 'text-[#a9c4ff]' : 'text-[#f09a86]'}>{send.data.correct ? tr('Correct.') : tr('Not yet.')} {send.data.explanation}</span>}{send.error && <span className="text-[#f09a86]">{errorText(send.error)}</span>}</div>
       {p.hint && !send.data?.correct && <details className="mt-2 text-fog"><summary className="cursor-pointer">{tr('Show a hint')}</summary>{p.hint}</details>}
     </li>
   );
@@ -226,7 +229,7 @@ export function MyProgress() {
           <div className="mt-5 grid gap-5 lg:grid-cols-[3fr_2fr]">
             <section className="npanel p-6">
               <h2 className="mb-5 text-lg font-bold">{tr('By topic')}</h2>
-              {d.topics.length ? <ul className="space-y-4">{d.topics.map((t: any) => <li key={t.topic}><div className="flex items-baseline justify-between gap-3"><span className="font-semibold">{tr(t.topic)} <span className="text-[13px] font-normal text-fog">{tr(t.subject)}</span></span><span className="whitespace-nowrap tabular-nums"><b className={t.accuracy < 70 ? 'text-[#f09a86]' : 'text-bone'}>{t.accuracy}%</b> <span className="text-[13px] text-fog">{t.correct} / {t.answered}</span></span></div><div className="mt-2 h-2 rounded-full bg-white/10"><div className={clsx('h-full rounded-full', t.accuracy < 70 ? 'bg-[#d9695c]' : 'bg-[#5fa585]')} style={{ width: `${Math.max(2, t.accuracy)}%` }} /></div></li>)}</ul> : <p className="text-fog">{tr('Topics appear after your first answers.')}</p>}
+              {d.topics.length ? <ul className="space-y-4">{d.topics.map((t: any) => <li key={t.topic}><div className="flex items-baseline justify-between gap-3"><span className="font-semibold">{tr(t.topic)} <span className="text-[13px] font-normal text-fog">{tr(t.subject)}</span></span><span className="whitespace-nowrap tabular-nums"><b className={t.accuracy < 70 ? 'text-[#f09a86]' : 'text-bone'}>{t.accuracy}%</b> <span className="text-[13px] text-fog">{t.correct} / {t.answered}</span></span></div><div className="mt-2 h-2 rounded-full bg-white/10"><div className={clsx('h-full rounded-full', t.accuracy < 70 ? 'bg-[#d9695c]' : 'bg-[#5a86f0]')} style={{ width: `${Math.max(2, t.accuracy)}%` }} /></div></li>)}</ul> : <p className="text-fog">{tr('Topics appear after your first answers.')}</p>}
             </section>
             <div className="space-y-5">
               <section className="npanel p-6">
@@ -246,6 +249,24 @@ export function MyProgress() {
   );
 }
 
+/** Changes the subject whose levels open first on the home page. */
+function CourseChoice() {
+  const home = useHome();
+  const [course, setCourse] = useState(chosenCourse());
+  const paths: Array<{ subject: { id: string; name: string } }> = home.data?.paths ?? [];
+  if (!paths.length) return null;
+  const now = paths.some((p) => p.subject.id === course) ? course : paths[0].subject.id;
+  return (
+    <section className="npanel p-6">
+      <h2 className="mb-1 text-lg font-bold">{tr('My course')}</h2>
+      <p className="mb-4 text-fog">{tr('Choose the subject you are learning now.')}</p>
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={tr('My course')}>
+        {paths.map(({ subject }) => <button key={subject.id} role="radio" aria-checked={subject.id === now} onClick={() => { chooseCourse(subject.id); setCourse(subject.id); }} className={clsx('rounded-xl border px-4 py-2 font-semibold transition', subject.id === now ? 'border-lamp bg-lamp text-night' : 'border-white/15 bg-white/5 text-fog hover:border-lamp/60 hover:text-bone')}>{tr(subject.name)}</button>)}
+      </div>
+    </section>
+  );
+}
+
 export function MySettings() {
   const me = useAuth((s) => s.me)!;
   const [f, setF] = useState({ currentPassword: '', newPassword: '' });
@@ -255,6 +276,7 @@ export function MySettings() {
       <h1 className="ntitle">{tr('Settings')}</h1>
       <p className="mt-1 text-fog">{me.firstName} {me.lastName}{me.email ? `, ${me.email}` : ''}</p>
       <div className="mt-6 grid items-start gap-5 lg:grid-cols-2">
+      <CourseChoice />
       <section className="npanel p-6"><h2 className="mb-1 text-lg font-bold">{tr('Language')}</h2><p className="mb-4 text-fog">{tr('The panel, the game and the official questions change together.')}</p><LanguagePicker dark /></section>
       {me.email && <div className="text-ink empty:hidden"><GoogleLink /></div>}
       {me.email ? (
@@ -263,12 +285,10 @@ export function MySettings() {
           <input className="nfield" type="password" aria-label={tr('Current password')} placeholder={tr('Current password')} autoComplete="current-password" required value={f.currentPassword} onChange={(e) => setF({ ...f, currentPassword: e.target.value })} />
           <input className="nfield" type="password" aria-label={tr('New password')} placeholder={tr('New password')} autoComplete="new-password" required minLength={8} value={f.newPassword} onChange={(e) => setF({ ...f, newPassword: e.target.value })} />
           {save.error && <p className="text-[#f09a86]" role="alert">{errorText(save.error)}</p>}
-          {save.isSuccess && <p className="text-[#a9d0a2]" role="status">{tr('Password changed')}</p>}
+          {save.isSuccess && <p className="text-[#a9c4ff]" role="status">{tr('Password changed')}</p>}
           <button className="nbtn-line" disabled={save.isPending}>{tr('Change password')}</button>
         </form>
-      ) : (
-        <section className="npanel p-6"><h2 className="mb-1 text-lg font-bold">{tr('Add an e-mail')}</h2><p className="mb-4 text-fog">{tr('You play with a code. Register with the same personal code to also sign in with an e-mail. Your results stay.')}</p><Link className="nbtn-line" to="/register" onClick={() => signOut()}>{tr('Create account')}</Link></section>
-      )}
+      ) : null}
       </div>
     </>
   );

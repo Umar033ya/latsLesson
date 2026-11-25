@@ -99,6 +99,12 @@ export class Friends {
     for (const { sprite } of this.all.values()) if (sprite.visible) yield { x: sprite.x, y: sprite.y };
   }
 
+  /** Somebody is already inside this hiding place. */
+  hiding(x: number, y: number): string | null {
+    for (const { peer } of this.all.values()) if (peer.hidden && !peer.finished && Math.hypot(peer.x - x, peer.y - y) < 26) return peer.nickname;
+    return null;
+  }
+
   destroy() {
     for (const [id, f] of this.all) this.remove(id, f);
   }

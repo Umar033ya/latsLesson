@@ -89,7 +89,7 @@ model User {
   passwordHash  String?
   /// Subject id of the linked Google account.
   googleSub     String?         @unique
-  /// Joined a room with a code only: no profile, no membership, no sign-in.
+  /// Joined a room with a code, or tried the official campaign: no profile, no membership, no sign-in.
   isGuest       Boolean         @default(false)
   firstName     String
   lastName      String
@@ -214,6 +214,8 @@ model Membership {
   status         MembershipStatus @default(ACTIVE)
   accessExpiresAt DateTime?
   note           String?
+  /// First open level by subject id, set by the center: { subjectId: 3 }.
+  startLevels    Json         @default("{}")
   joinedAt       DateTime     @default(now())
   lastActiveAt   DateTime?
   group          Group?       @relation(fields: [groupId], references: [id], onDelete: SetNull)

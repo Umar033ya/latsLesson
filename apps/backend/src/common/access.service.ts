@@ -101,7 +101,7 @@ export class AccessService {
   }
 
   /** Center defaults, then campaign overrides, then platform policy. Policy always wins. */
-  async gameplay(org: OrgWithPlan, override: Partial<GameplayConfig> = {}): Promise<GameplayConfig> {
+  async gameplay(org: { settings: unknown }, override: Partial<GameplayConfig> = {}): Promise<GameplayConfig> {
     const platform = await this.platform();
     const merged: GameplayConfig = { ...this.settings(org).gameplay, ...override };
     if (!platform.allowedTensions.includes(merged.tension)) merged.tension = platform.allowedTensions[0];

@@ -21,6 +21,10 @@ Five register pages are hidden. With all five, the player can ring the bell and 
 
 **The Invigilator** (`world/ai.ts`): patrol, investigate, chase, search, return. He finds light and movement and hears noise: running, doors, wrong answers, thrown chalk. He cannot see someone standing still in the dark or inside a locker, and never outruns a running player. He needs a moment before he reacts.
 
+**The assistants.** When the light returns, one more examiner comes out; after the typewriter the rest do. A calm night has one, a standard night two, a tense night three. Each waits behind an unlocked door of its own (canteen, cloakroom, music room) that stays open afterwards. They are slower and see less far than the Invigilator and follow the same rules. The study mode has none.
+
+**Levels.** A campaign with a subject and a number is a level on the student's map. The next one opens after an escape with at least 60% right answers; a teacher can set a higher start. Topics of lower levels are mixed in.
+
 **Fairness.** A question that runs out of tries opens anyway, loudly, so nobody gets stuck. Dialogues and notes stop the school. Center settings decide whether questions do.
 
 **Learning.** A short lesson precedes the first question of each topic, the notebook (J) keeps what was learned, hiding asks a quick question that keeps the player quiet, and the report explains every mistake. An arrow points to the next task.
