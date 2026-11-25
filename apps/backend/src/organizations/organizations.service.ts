@@ -26,8 +26,9 @@ export class OrganizationsService {
     return org;
   }
 
-  async findAll(q: { page: number; pageSize: number; search?: string; status?: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE'; planId?: string }) {
+  async findAll(q: { page: number; pageSize: number; search?: string; status?: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE'; planId?: string; includeDemo?: boolean }) {
     const where = {
+      ...(q.includeDemo ? {} : { isDemo: false }),
       ...(q.search ? { OR: [{ name: { contains: q.search, mode: 'insensitive' as const } }, { slug: { contains: q.search, mode: 'insensitive' as const } }, { city: { contains: q.search, mode: 'insensitive' as const } }] } : {}),
       ...(q.status ? { status: q.status } : {}),
       ...(q.planId ? { planId: q.planId } : {}),

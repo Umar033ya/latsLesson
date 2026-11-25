@@ -83,6 +83,9 @@ export class School extends Phaser.Scene {
   private dread = 0;
   private heartT = 0;
   private penT = 0;
+  private jumpT = 0;
+  private jumpCooldown = 0;
+  private jumpOffset = 0;
   private roomId = '';
   private near: Thing | null = null;
   private chalkFly: Phaser.GameObjects.Image | null = null;
@@ -136,7 +139,7 @@ export class School extends Phaser.Scene {
 
   create() {
     const d = this.session.data;
-    Object.assign(this, { things: [], windows: [], torch: false, hidden: null, frozen: true, over: false, noise: 0, near: null, roomId: '', dread: 0, lowWarned: false, flash: 0, roomSeen: null, guideT: 0, guideTo: null, walked: 0, phrase: null });
+    Object.assign(this, { things: [], windows: [], torch: false, hidden: null, frozen: true, over: false, noise: 0, near: null, roomId: '', dread: 0, lowWarned: false, flash: 0, roomSeen: null, guideT: 0, guideTo: null, walked: 0, phrase: null, jumpT: 0, jumpCooldown: 0, jumpOffset: 0 });
     this.doors.clear();
     this.propSprites.clear();
     this.keys.clear();
@@ -170,13 +173,13 @@ export class School extends Phaser.Scene {
       {
         path: (a, b) => this.grid.path(a.x, a.y, b.x, b.y),
         sees: (a, b) => this.grid.sees(a.x, a.y, b.x, b.y),
-        waypoints: () => WAYPOINTS.filter((w) => (this.game_.tension === 'CALM' ? w.room === 'hall' || w.room === 'back' : true) && this.roomReachable(w.room)),
+        waypoints: () => WAYPOINTS.filter((w) => this.roomReachable(w.room)),
       },
       TUNING[this.game_.tension],
       { state: (n, p) => this.onMind(n, p), caught: () => void this.caught() },
     );
     this.aides = this.study ? [] : ASSISTANT_HOMES.slice(0, { CALM: 1, STANDARD: 2, TENSE: 3 }[this.game_.tension]).map((home) => this.makeAide(home));
-    if (this.huntStarted() && !this.study) this.mind.wake();
+    if (!this.study) this.mind.wake();
     this.wakeAides(true);
 
     this.buildThings();
@@ -298,7 +301,7 @@ export class School extends Phaser.Scene {
     const t = TUNING[this.game_.tension];
     const mind = new InvigilatorMind(
       home,
-      { path: (a, b) => this.grid.path(a.x, a.y, b.x, b.y), sees: (a, b) => this.grid.sees(a.x, a.y, b.x, b.y), waypoints: () => WAYPOINTS.filter((w) => (this.game_.tension === 'CALM' ? w.room === 'hall' : true) && this.roomReachable(w.room)) },
+      { path: (a, b) => this.grid.path(a.x, a.y, b.x, b.y), sees: (a, b) => this.grid.sees(a.x, a.y, b.x, b.y), waypoints: () => WAYPOINTS.filter((w) => this.roomReachable(w.room)) },
       // Slower and shorter-sighted than the first one: more of them, not harder to outrun.
       { ...t, patrol: t.patrol * 0.9, chase: t.chase * 0.85, sightLit: t.sightLit * 0.85 },
       { state: (n, p) => this.onMind(n, p), caught: () => void this.caught() },
@@ -845,7 +848,7 @@ export class School extends Phaser.Scene {
   private perceived() {
     const v = this.input_();
     const moving = v.lengthSq() > 0.01 && !this.ui.busy;
-    return { pos: { x: this.player.x, y: this.player.y }, torch: this.torch, moving, running: moving && this.running(), hidden: Boolean(this.hidden) };
+    return { pos: { x: this.player.x, y: this.player.y }, torch: this.torch, moving, running: moving && this.running(), hidden: Boolean(this.hidden), jumping: this.jumpT > 0.12 };
   }
 
   /* ---------------------------------------------------------------- input */
@@ -856,7 +859,8 @@ export class School extends Phaser.Scene {
     this.keys.add(e.code);
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
     if (this.ui.busy || this.frozen || e.repeat) return;
-    if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') void this.use();
+    if (e.code === 'KeyE' || e.code === 'Enter') void this.use();
+    if (e.code === 'Space') this.jump();
     if (e.code === 'KeyF') this.toggleTorch();
     if (e.code === 'KeyR') this.changeBattery();
     if (e.code === 'KeyQ') this.throwChalk();
@@ -870,6 +874,14 @@ export class School extends Phaser.Scene {
     if (!t) return;
     this.keys.clear();
     await t.use();
+  }
+
+  private jump() {
+    if (this.jumpCooldown > 0 || this.hidden || this.ui.busy || this.frozen || this.over) return;
+    this.jumpT = 0.42;
+    this.jumpCooldown = 1.15;
+    this.audio.play('cloth', 0.35);
+    this.makeNoise(this.player.x, this.player.y, 38);
   }
 
   private async pause() {
@@ -947,6 +959,10 @@ export class School extends Phaser.Scene {
   update(_t: number, delta: number) {
     const dt = Math.min(0.05, delta / 1000);
     if (!this.player) return;
+    this.player.y += this.jumpOffset;
+    this.jumpOffset = 0;
+    this.jumpCooldown = Math.max(0, this.jumpCooldown - dt);
+    this.jumpT = Math.max(0, this.jumpT - dt);
     const free = !this.ui.busy && !this.frozen && !this.over;
     if (free) {
       this.s.seconds += dt;
@@ -978,6 +994,8 @@ export class School extends Phaser.Scene {
     this.room?.tick();
     this.updateLights();
     this.hud();
+    this.jumpOffset = this.jumpT > 0 ? Math.sin((1 - this.jumpT / 0.42) * Math.PI) * 13 : 0;
+    this.player.y -= this.jumpOffset;
   }
 
   private movePlayer(dt: number) {
@@ -1127,8 +1145,7 @@ export class School extends Phaser.Scene {
     cam.pan(this.player.x, this.player.y - 10, 700, 'Sine.easeInOut');
     await new Promise<void>((r) => this.time.delayedCall(720, () => r()));
     cam.startFollow(this.player, true, 0.12, 0.12, 0, 10);
-    if (this.huntStarted()) this.mind.relocate({ x: 52 * TILE, y: 26 * TILE }, 1);
-    else this.mind.sleepAt(INVIGILATOR_HOME);
+    this.mind.relocate({ x: 52 * TILE, y: 26 * TILE }, 1);
     this.frozen = false;
     this.save();
   }

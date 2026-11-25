@@ -294,11 +294,12 @@ async function content() {
 
 async function people(planIds: Map<string, string>) {
   const superAdmin = await user('super@lastlesson.dev', 'Platform', 'Owner', 'SUPER_ADMIN');
+  if (production) return;
 
   const center = async (slug: string, name: string, city: string, plan: string, settings: unknown) =>
     prisma.organization.upsert({
       where: { slug },
-      create: { slug, name, city, planId: planIds.get(plan), subscriptionEndsAt: new Date(Date.now() + 365 * 86_400_000), settings: centerSettingsSchema.parse(settings) as unknown as Prisma.InputJsonValue },
+      create: { slug, name, city, isDemo: true, planId: planIds.get(plan), subscriptionEndsAt: new Date(Date.now() + 365 * 86_400_000), settings: centerSettingsSchema.parse(settings) as unknown as Prisma.InputJsonValue },
       update: production ? {} : { status: 'ACTIVE' },
     });
   const academy = await center('zarafshon', 'Zarafshon Academy', 'Samarkand', 'center', {
@@ -351,6 +352,15 @@ async function people(planIds: Map<string, string>) {
 }
 
 async function main() {
+  if (production) {
+    for (const [slug, name] of [
+      ['zarafshon', 'Zarafshon Academy'],
+      ['silk-road', 'Silk Road Learning Center'],
+      ['bright-minds', 'Bright Minds Academy'],
+      ['orbit', 'Orbit Education'],
+      ['riverside', 'Riverside Learning Center'],
+    ]) await prisma.organization.updateMany({ where: { slug, name }, data: { isDemo: true } });
+  }
   // A deploy finds the content in place and leaves it alone, whatever the panels have made of it since.
   const filled = production && (await prisma.question.count({ where: { organizationId: null } })) > 0;
   const plans = filled ? new Map((await prisma.plan.findMany()).map((p) => [p.key, p.id])) : await content();

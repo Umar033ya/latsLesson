@@ -22,15 +22,15 @@ export class AnalyticsService {
     const since = new Date(Date.now() - 29 * 86_400_000);
     const weekAgo = new Date(Date.now() - 7 * 86_400_000);
     const [centers, students, sessions, outcomes, aggregate, questions, campaigns, perDay, top, activeStudents, flagged] = await Promise.all([
-      this.prisma.organization.groupBy({ by: ['status'], _count: { id: true } }),
-      this.prisma.membership.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.organization.groupBy({ by: ['status'], where: { isDemo: false }, _count: { id: true } }),
+      this.prisma.membership.count({ where: { status: 'ACTIVE', organization: { isDemo: false } } }),
       this.prisma.gameSession.groupBy({ by: ['status'], _count: { id: true } }),
       this.prisma.gameResult.groupBy({ by: ['outcome'], _count: { id: true } }),
       this.prisma.gameResult.aggregate({ _avg: { accuracy: true, durationSeconds: true } }),
       this.prisma.question.count({ where: { status: 'PUBLISHED' } }),
       this.prisma.campaign.count({ where: { status: 'PUBLISHED' } }),
       this.sessionsPerDay(Prisma.sql`s."startedAt" >= ${since}`),
-      this.prisma.gameSession.groupBy({ by: ['organizationId'], where: { startedAt: { gte: since }, organizationId: { not: null } }, _count: { id: true }, orderBy: { _count: { id: 'desc' } }, take: 5 }),
+      this.prisma.gameSession.groupBy({ by: ['organizationId'], where: { startedAt: { gte: since }, organizationId: { not: null }, organization: { isDemo: false } }, _count: { id: true }, orderBy: { _count: { id: 'desc' } }, take: 5 }),
       this.prisma.gameSession.findMany({ where: { startedAt: { gte: weekAgo }, user: { isGuest: false } }, distinct: ['userId'], select: { userId: true } }),
       this.prisma.gameSession.count({ where: { NOT: { flags: { isEmpty: true } }, startedAt: { gte: since } } }),
     ]);
@@ -66,6 +66,7 @@ export class AnalyticsService {
       FROM "Organization" o
       LEFT JOIN "GameSession" s ON s."organizationId" = o.id
       LEFT JOIN "Campaign" c ON c.id = s."campaignId"
+      WHERE o."isDemo" = false
       GROUP BY o.id ORDER BY accuracy DESC NULLS LAST, completed DESC LIMIT 100`;
   }
 

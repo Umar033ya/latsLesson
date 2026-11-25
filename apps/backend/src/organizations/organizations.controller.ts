@@ -9,7 +9,7 @@ import { IdPipe, zodPipe } from '../common/zod-validation.pipe';
 import type { Actor } from '../common/actor';
 import { OrganizationsService } from './organizations.service';
 
-const listSchema = paginationSchema.extend({ status: z.enum(['ACTIVE', 'SUSPENDED', 'INACTIVE']).optional(), planId: z.string().uuid().optional() });
+const listSchema = paginationSchema.extend({ status: z.enum(['ACTIVE', 'SUSPENDED', 'INACTIVE']).optional(), planId: z.string().uuid().optional(), includeDemo: z.enum(['true', 'false']).optional() });
 
 /** Education centers as seen by the platform owner. Centers edit themselves through /center. */
 @ApiTags('organizations')
@@ -25,7 +25,7 @@ export class OrganizationsController {
 
   @Get()
   findAll(@Query(zodPipe(listSchema)) query: z.infer<typeof listSchema>) {
-    return this.service.findAll(query);
+    return this.service.findAll({ ...query, includeDemo: query.includeDemo === 'true' });
   }
 
   @Get(':id')

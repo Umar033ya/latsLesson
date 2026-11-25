@@ -96,13 +96,29 @@ export class GameSessionsService {
   }
 
   /** Anyone may try the official campaign. The session is graded here like any other and belongs to a throwaway guest. */
-  async guest(name: string) {
+  async guest(name: string, subjectSlug: 'mathematics' | 'english' = 'mathematics') {
     const platform = await this.access.platform();
     if (!platform.gameEnabled) throw new ApiException('GAME_DISABLED', platform.maintenanceMessage || 'The game is closed for maintenance', 503);
     await this.prisma.user.deleteMany({ where: { isGuest: true, lobbyPlayers: { none: {} }, createdAt: { lt: new Date(Date.now() - GUEST_HOURS * 3_600_000) } } });
+    const subject = await this.prisma.subject.findUnique({ where: { slug: subjectSlug } });
+    if (!subject?.isActive) throw new ApiException('NO_QUESTIONS', 'This demo subject is not available', 409);
     const official = await this.prisma.campaign.findMany({ where: { organizationId: null, status: 'PUBLISHED' }, orderBy: { createdAt: 'asc' } });
-    const campaign = official.find((c) => !this.campaigns.config(c).level);
-    if (!campaign) throw new ApiException('NO_QUESTIONS', 'There is no open campaign yet', 409);
+    const base = official.find((c) => !this.campaigns.config(c).level);
+    if (!base) throw new ApiException('NO_QUESTIONS', 'There is no open campaign yet', 409);
+    const baseConfig = this.campaigns.config(base);
+    const config = {
+      ...baseConfig,
+      source: { ...baseConfig.source, subjectIds: [subject.id], topicIds: [], collectionIds: [], includeOfficial: true },
+      difficulty: 'EASY' as const,
+      progression: 'FLAT' as const,
+      gameplay: { ...baseConfig.gameplay, sessionMinutes: 12 },
+      objectives: [],
+    };
+    const campaign: Campaign = {
+      ...base,
+      title: subjectSlug === 'mathematics' ? 'Mathematics warm-up' : 'English warm-up',
+      config: config as unknown as Prisma.JsonValue,
+    };
     const { data, gameplay } = await this.prepare(campaign, null);
     const user = await this.prisma.user.create({ data: { firstName: name, lastName: '', role: 'GAMER', isGuest: true } });
     const session = await this.prisma.gameSession.create({ data: { ...data, userId: user.id, campaignId: campaign.id, expiresAt: new Date(Date.now() + Math.max(120, gameplay.sessionMinutes * 4) * 60_000) } });

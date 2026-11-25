@@ -61,8 +61,8 @@ export class RemoteSession implements GameSession {
   }
 
   /** A night without an account. Questions and grading come from the server here too. */
-  static async guest(name: string): Promise<RemoteSession> {
-    const { launchUrl } = await request<{ launchUrl: string }>('POST', '/play/guest', { body: { name }, retries: 2 });
+  static async guest(name: string, subject: 'mathematics' | 'english' = 'mathematics'): Promise<RemoteSession> {
+    const { launchUrl } = await request<{ launchUrl: string }>('POST', '/play/guest', { body: { name, subject }, retries: 2 });
     return RemoteSession.exchange(new URL(launchUrl).hash.replace('#ticket=', ''));
   }
 

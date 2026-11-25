@@ -69,14 +69,19 @@ function CentersTable() {
 }
 
 export function Centers() {
-  const [f, setF] = useState({ page: 1, search: '', status: '', planId: '' });
+  const [f, setF] = useState({ page: 1, search: '', status: '', planId: '', includeDemo: 'false' });
   const plans = usePlans();
   const [make, setMake] = useState(false);
   const q = useQuery({ queryKey: ['centers', f], queryFn: () => get<any>('/organizations', f) });
   const on = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value, page: 1 });
   return (
     <Page title={tr('Education centers')} action={<button className="btn-main" onClick={() => setMake(true)}>{tr('New center')}</button>}>
-      <div className="mb-4 grid gap-3 sm:grid-cols-3"><input className="field" placeholder={tr('Name or city')} aria-label={tr('Search')} value={f.search} onChange={on('search')} /><select className="field" aria-label={tr('Status')} value={f.status} onChange={on('status')}><option value="">{tr('Any status')}</option>{['ACTIVE', 'SUSPENDED', 'INACTIVE'].map((s) => <option key={s} value={s}>{tr(words(s))}</option>)}</select><select className="field" aria-label={tr('Plan')} value={f.planId} onChange={on('planId')}><option value="">{tr('Any plan')}</option>{plans.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <input className="field" placeholder={tr('Name or city')} aria-label={tr('Search')} value={f.search} onChange={on('search')} />
+        <select className="field" aria-label={tr('Status')} value={f.status} onChange={on('status')}><option value="">{tr('Any status')}</option>{['ACTIVE', 'SUSPENDED', 'INACTIVE'].map((s) => <option key={s} value={s}>{tr(words(s))}</option>)}</select>
+        <select className="field" aria-label={tr('Plan')} value={f.planId} onChange={on('planId')}><option value="">{tr('Any plan')}</option>{plans.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-moss" checked={f.includeDemo === 'true'} onChange={() => setF({ ...f, page: 1, includeDemo: f.includeDemo === 'true' ? 'false' : 'true' })} />{tr('Show demo centers')}</label>
+      </div>
       <Load q={q}>{(d) => d.items.length ? <div className="sheet overflow-x-auto"><table className="reg min-w-[760px]"><thead><tr><th>{tr('Center')}</th><th>{tr('Plan')}</th><th>{tr('Students')}</th><th>{tr('Sessions')}</th><th>{tr('Paid until')}</th><th>{tr('Status')}</th></tr></thead><tbody>{d.items.map((c: any) => <tr key={c.id}><td><span className="flex items-center gap-3"><Avatar name={c.name} /><span><Link className="font-semibold hover:underline" to={`/admin/centers/${c.id}`}>{c.name}</Link><span className="block text-[13px] text-soft">{c.city}</span></span></span></td><td>{c.plan?.name ?? tr('Trial limits')}</td><td>{c.students}{c.plan && ` / ${c.plan.maxStudents}`}</td><td>{c.sessions}</td><td>{c.subscriptionEndsAt ? <span className={new Date(c.subscriptionEndsAt) < new Date() ? 'font-semibold text-pencil-dark' : ''}>{day(c.subscriptionEndsAt)}</span> : tr('No end date')}</td><td><Status value={c.status} /></td></tr>)}</tbody></table></div> : <Empty title={tr('No centers match')} />}</Load>
       {q.data && <Pager {...q.data} onPage={(page) => setF({ ...f, page })} />}
       {make && <NewCenter plans={plans.data ?? []} onClose={() => setMake(false)} />}

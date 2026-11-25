@@ -325,7 +325,7 @@ export const practiceAnswerSchema = z.object({ questionId: uuid, answer: z.unkno
 /* ---------- game sessions ---------- */
 export const launchSchema = z.object({ campaignId: uuid, preparationId: uuid.nullable().optional() });
 /** A game without an account. The name is only used in the dialogues. */
-export const guestSchema = z.object({ name: nicknameSchema.optional() });
+export const guestSchema = z.object({ name: nicknameSchema.optional(), subject: z.enum(['mathematics', 'english']).optional() });
 export const exchangeSchema = z.object({ ticket: z.string().min(20).max(200) });
 const requestId = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/);
 export const playAnswerSchema = z.object({

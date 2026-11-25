@@ -21,6 +21,7 @@ export interface Perceived {
   moving: boolean;
   running: boolean;
   hidden: boolean;
+  jumping?: boolean;
 }
 
 export interface Tuning {
@@ -100,6 +101,10 @@ export class InvigilatorMind {
     this.lastSeen = { ...at };
     this.enter('INVESTIGATE');
     this.setRoute(at);
+    if (!this.route.length) {
+      const reachable = this.world.waypoints().filter((point) => this.world.path(this.pos, point));
+      if (reachable.length) this.setRoute(reachable.reduce((a, b) => dist(a, at) < dist(b, at) ? a : b));
+    }
   }
 
   /** A right answer in a hiding place: it stops looking here. */
@@ -168,7 +173,7 @@ export class InvigilatorMind {
         }
         if (seen && dist(this.pos, p.pos) < 26) this.step(p.pos, this.tuning.chase, dt);
         else this.walk(this.tuning.chase, dt);
-        if (!p.hidden && dist(this.pos, p.pos) < this.tuning.catchRange && this.world.sees(this.pos, p.pos)) {
+        if (!p.hidden && !p.jumping && dist(this.pos, p.pos) < this.tuning.catchRange && this.world.sees(this.pos, p.pos)) {
           this.events.caught?.();
           return;
         }

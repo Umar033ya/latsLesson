@@ -125,6 +125,7 @@ model Organization {
   id            String              @id @default(uuid()) @db.Uuid
   name          String
   slug          String              @unique
+  isDemo        Boolean             @default(false)
   logoUrl       String?
   contactName   String?
   contactEmail  String?

@@ -76,9 +76,9 @@ async function main() {
     const choice = await titleScreen({ session, error, onSound: () => audio.play('slam', 0.4) });
     error = undefined;
     let active = session;
-    if (choice === 'guest' || !active) {
+    if (typeof choice === 'object' || !active) {
       try {
-        active = await RemoteSession.guest(tr('Student'));
+        active = await RemoteSession.guest(tr('Student'), typeof choice === 'object' ? choice.guestSubject : 'mathematics');
       } catch (e) {
         error = errorText(e as SessionError);
         continue;

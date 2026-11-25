@@ -1,5 +1,6 @@
 /** Line icons, drawn with one stroke so that they stay readable at any scale of the stage. */
 const PATHS = {
+  jump: 'M3 18h4l3-6 3 4h5l3-7 M4 7h4 M6 5v4 M16 4l2-2 2 2',
   use: 'M8 12V5a2 2 0 014 0v6 M12 11V8a2 2 0 014 0v4 M16 12v-2a2 2 0 014 0v5a7 7 0 01-13 3l-4-6a2 2 0 013-2l2 2',
   torch: 'M6 3h12l-2 7v11H8V10z M12 13v3',
   battery: 'M3 7h15v10H3z M18 10h3v4h-3 M9 9l-2 3h4l-2 3',

@@ -26,8 +26,8 @@ export class PlayController {
   @UseGuards(RateLimitGuard)
   @RateLimit('guest', 60, 600)
   @ApiOperation({ summary: 'Play the official campaign without an account. Returns a one-time launch link.' })
-  guest(@Body(zodPipe(guestSchema)) body: { name?: string }) {
-    return this.sessions.guest(body.name ?? 'Student');
+  guest(@Body(zodPipe(guestSchema)) body: { name?: string; subject?: 'mathematics' | 'english' }) {
+    return this.sessions.guest(body.name ?? 'Student', body.subject ?? 'mathematics');
   }
 
   @Post('exchange')

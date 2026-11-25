@@ -1012,6 +1012,7 @@ const dictionary: Record<string, string> = {
   "error.FORBIDDEN": "Ruxsat yo‘q",
   "error.NOT_FOUND": "Topilmadi",
   "error.INTERNAL": "Bizda xatolik. Qayta urinib ko‘ring.",
+  "Show demo centers": "Demo markazlarni ko‘rsatish",
   "error.SESSION_IN_PROGRESS": "Tahlil o‘yin tugagach ochiladi"
 };
 

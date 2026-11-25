@@ -1012,6 +1012,7 @@ const dictionary: Record<string, string> = {
   "error.FORBIDDEN": "Нет доступа",
   "error.NOT_FOUND": "Не найдено",
   "error.INTERNAL": "Ошибка на нашей стороне. Попробуйте ещё раз.",
+  "Show demo centers": "Показать демо-центры",
   "error.SESSION_IN_PROGRESS": "Разбор откроется после завершения сессии"
 };
 

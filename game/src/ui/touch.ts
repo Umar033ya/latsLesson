@@ -17,6 +17,7 @@ export const withoutKey = (text: string) => (isTouch() ? text.replace(/\s*\([A-Z
 
 const press = (code: string) => dispatchEvent(new KeyboardEvent('keydown', { code, key: code, bubbles: true }));
 export const pressUse = () => press('KeyE');
+export const pressJump = () => press('Space');
 
 /** What the big button does right now, or null when there is nothing to use. */
 export function setAction(text: string | null) {
@@ -98,7 +99,7 @@ function mount(onTalk: () => void) {
     el(
       'div',
       { class: `absolute bottom-10 flex items-end gap-6 ${right}` },
-      el('div', { class: 'grid grid-cols-2 gap-5' }, button('chalk', tr('Throw chalk'), () => press('KeyQ')), button('battery', tr('Change the battery'), () => press('KeyR')), button('talk', tr('Say to the others'), onTalk), button('torch', tr('Torch'), () => press('KeyF'))),
+      el('div', { class: 'grid grid-cols-2 gap-5' }, button('chalk', tr('Throw chalk'), () => press('KeyQ')), button('battery', tr('Change the battery'), () => press('KeyR')), button('talk', tr('Say to the others'), onTalk), button('jump', tr('Jump'), pressJump), button('torch', tr('Torch'), () => press('KeyF'))),
       el('div', { class: 'relative' }, label, action),
     ),
     el('div', { class: `absolute top-34 flex gap-5 ${right}` }, button('notebook', tr('Notebook'), () => press('KeyJ'), 'h-24 w-24'), button('full', tr('Full screen'), () => void fullscreen(), 'h-24 w-24'), button('pause', tr('Pause'), () => press('Escape'), 'h-24 w-24')),

@@ -22,7 +22,7 @@ function menuButton(name: IconName, label: string, run: () => void, main = false
 }
 
 /** A window over the title screen. Escape and the cross close it and return the focus. */
-function windowBox(title: string, body: HTMLElement) {
+function windowBox(title: string, body: HTMLElement): () => void {
   const back = document.activeElement as HTMLElement | null;
   const close = () => {
     removeEventListener('keydown', key, true);
@@ -47,22 +47,34 @@ function windowBox(title: string, body: HTMLElement) {
   ui.append(box);
   addEventListener('keydown', key, true);
   box.querySelector<HTMLElement>('button, input')?.focus();
+  return close;
 }
 
-/** Title screen. Resolves when the player starts. */
-export function titleScreen(opts: { session: GameSession | null; error?: string; onSound: () => void }): Promise<'start' | 'guest'> {
+/** Title screen. Guests choose a subject before their demo session is created. */
+export type TitleChoice = 'start' | { guestSubject: 'mathematics' | 'english' };
+export function titleScreen(opts: { session: GameSession | null; error?: string; onSound: () => void }): Promise<TitleChoice> {
   return new Promise((resolve) => {
     const { session, error } = opts;
-    const go = (r: 'start' | 'guest') => {
+    const go = (r: TitleChoice) => {
       opts.onSound();
       screen.classList.add('out');
       setTimeout(() => screen.remove(), 700);
       resolve(r);
     };
     const open = (path: string) => () => location.assign(site(path));
+    const chooseDemo = () => {
+      let close = () => undefined;
+      const pick = (subject: 'mathematics' | 'english') => { close(); go({ guestSubject: subject }); };
+      const body = el('div', { class: 'grid gap-3' },
+        el('p', { class: 'mb-2 text-9 leading-snug text-fog' }, tr('Choose what you want to practise. The demo will ask easy questions in that subject.')),
+        el('button', { class: 'border border-steel bg-ink/80 px-10 py-8 text-left text-11 text-paper hover:border-lamp hover:text-lamp', onclick: () => pick('mathematics') }, tr('Mathematics')),
+        el('button', { class: 'border border-steel bg-ink/80 px-10 py-8 text-left text-11 text-paper hover:border-lamp hover:text-lamp', onclick: () => pick('english') }, tr('English')),
+      );
+      close = windowBox(tr('Choose a subject'), body);
+    };
     const main = session
       ? menuButton('play', session.data.checkpoint ? tr('Return to the school') : tr('Take your seat'), () => go('start'), true)
-      : menuButton('play', tr('Play'), () => go('guest'), true);
+      : menuButton('play', tr('Play'), chooseDemo, true);
     const items = [
       main,
       ...(session ? [] : [menuButton('key', tr('Enter with a code'), open('/')), menuButton('room', tr('Join a room'), open('/join')), menuButton('user', tr('Sign in'), open('/login'))]),
@@ -96,6 +108,7 @@ const HOW: Array<[IconName, string, string]> = [
   ['play', tr('Follow the yellow arrow'), tr('It points to the next task. Walk with WASD or the arrow keys, on a phone with the stick.')],
   ['notebook', tr('Learn, then answer'), tr('Before a question you get a short lesson. J opens the notebook with everything you learned.')],
   ['torch', tr('Stay unnoticed'), tr('The Invigilator sees light and hears running. Shift is faster, but louder.')],
+  ['jump', tr('Jump with Space'), tr('A short hop can dodge a close grab. It also makes a little noise.')],
   ['room', tr('Hide in lockers'), tr('Answer a quick question there and he walks on.')],
   ['talk', tr('Play with friends'), tr('In a room hold V and choose a phrase. The first one out wins.')],
 ];
