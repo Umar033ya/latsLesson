@@ -37,7 +37,7 @@ fit();
 
 async function main() {
   const game = new Phaser.Game({
-    type: Phaser.WEBGL,
+    type: Phaser.AUTO,
     parent: 'game',
     width: view().w,
     height: view().h,

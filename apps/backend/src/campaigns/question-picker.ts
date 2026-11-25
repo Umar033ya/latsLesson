@@ -35,7 +35,7 @@ export class QuestionPicker {
   }
 
   async pool(config: CampaignConfig, organizationId: string | null) {
-    return this.prisma.question.findMany({ where: this.poolWhere(config, organizationId), select: { id: true, type: true, difficulty: true, subjectId: true, topicId: true, prompt: true }, take: 2000 });
+    return this.prisma.question.findMany({ where: this.poolWhere(config, organizationId), select: { id: true, type: true, difficulty: true, subjectId: true, topicId: true }, take: 2000 });
   }
 
   targetLevel(config: CampaignConfig, index: number, total: number): number {
@@ -70,15 +70,16 @@ export class QuestionPicker {
       if (slots.has(gate.id)) continue;
       const override = config.overrides[gate.id] ?? {};
       const level = override.difficulty ? LEVEL[override.difficulty] : gate.section === 'hiding' ? Math.max(0, LEVEL[config.difficulty] - 1) : this.targetLevel(config, path.indexOf(gate), path.length);
-      const ranked = pool
-        // Only short, two-tap questions fit into a hiding place.
-        .filter((q) => gate.section !== 'hiding' || gate.preferred.includes(q.type as QuestionKind))
-        .filter((q) => !used.has(q.id) && (!override.subjectId || q.subjectId === override.subjectId))
-        .map((q) => ({ id: q.id, cost: this.cost(gate, q.type as QuestionKind, LEVEL[q.difficulty], level) + (avoid.practiced?.includes(q.id) ? 6 : 0) + (avoid.recent?.includes(q.id) ? 3 : 0) + (q.topicId && review.includes(q.topicId) && Math.random() > REVIEW_SHARE ? 5 : 0) + Math.random() * 1.5 }))
-        .sort((a, b) => a.cost - b.cost);
-      if (!ranked.length) continue;
-      slots.set(gate.id, ranked[0].id);
-      used.add(ranked[0].id);
+      let bestId: string | undefined;
+      let bestCost = Number.POSITIVE_INFINITY;
+      for (const q of pool) {
+        if ((gate.section === 'hiding' && !gate.preferred.includes(q.type as QuestionKind)) || used.has(q.id) || (override.subjectId && q.subjectId !== override.subjectId)) continue;
+        const cost = this.cost(gate, q.type as QuestionKind, LEVEL[q.difficulty], level) + (avoid.practiced?.includes(q.id) ? 6 : 0) + (avoid.recent?.includes(q.id) ? 3 : 0) + (q.topicId && review.includes(q.topicId) && Math.random() > REVIEW_SHARE ? 5 : 0) + Math.random() * 1.5;
+        if (cost < bestCost) { bestCost = cost; bestId = q.id; }
+      }
+      if (!bestId) continue;
+      slots.set(gate.id, bestId);
+      used.add(bestId);
     }
     return gates.filter((g) => slots.has(g.id)).map((g) => ({ gateId: g.id, questionId: slots.get(g.id)! }));
   }

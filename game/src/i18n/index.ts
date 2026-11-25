@@ -23,7 +23,7 @@ export async function loadLanguage() {
 export const getLanguage = () => lang;
 
 export function tr(text: string, values?: Record<string, string | number>): string {
-  const out = dict[text] ?? text;
+  const out = (dict[text] ?? text).replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
   return values ? out.replace(/\{(\w+)\}/g, (_, k: string) => String(values[k] ?? '')) : out;
 }
 

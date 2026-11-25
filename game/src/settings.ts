@@ -11,7 +11,7 @@ export interface Settings {
   guide: boolean;
 }
 const KEY = 'last-lesson-settings';
-const base: Settings = { music: 0.7, sfx: 0.8, textSpeed: 1, brightness: 1.2, calmFlashes: false, lowQuality: false, voice: true, guide: true };
+const base: Settings = { music: 0.7, sfx: 0.8, textSpeed: 1, brightness: 1.2, calmFlashes: false, lowQuality: matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 4), voice: true, guide: true };
 
 function load(): Settings {
   try {

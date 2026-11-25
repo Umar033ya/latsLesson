@@ -25,6 +25,8 @@ export interface SessionConfig {
 const TICKET_SECONDS = 120;
 /** Guests without a room are removed after this time, together with their sessions. */
 const GUEST_HOURS = 48;
+const GUEST_CLEANUP_MS = 15 * 60_000;
+let lastGuestCleanup = 0;
 
 @Injectable()
 export class GameSessionsService {
@@ -99,7 +101,11 @@ export class GameSessionsService {
   async guest(name: string, subjectSlug: 'mathematics' | 'english' = 'mathematics') {
     const platform = await this.access.platform();
     if (!platform.gameEnabled) throw new ApiException('GAME_DISABLED', platform.maintenanceMessage || 'The game is closed for maintenance', 503);
-    await this.prisma.user.deleteMany({ where: { isGuest: true, lobbyPlayers: { none: {} }, createdAt: { lt: new Date(Date.now() - GUEST_HOURS * 3_600_000) } } });
+    const now = Date.now();
+    if (now - lastGuestCleanup >= GUEST_CLEANUP_MS) {
+      lastGuestCleanup = now;
+      await this.prisma.user.deleteMany({ where: { isGuest: true, lobbyPlayers: { none: {} }, createdAt: { lt: new Date(now - GUEST_HOURS * 3_600_000) } } });
+    }
     const subject = await this.prisma.subject.findUnique({ where: { slug: subjectSlug } });
     if (!subject?.isActive) throw new ApiException('NO_QUESTIONS', 'This demo subject is not available', 409);
     const official = await this.prisma.campaign.findMany({ where: { organizationId: null, status: 'PUBLISHED' }, orderBy: { createdAt: 'asc' } });

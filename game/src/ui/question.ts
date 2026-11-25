@@ -62,7 +62,7 @@ export class QuestionDesk {
           { class: 'device' },
           el('header', {}, el('b', {}, tr(gate.title)), el('span', { class: 'meta' }, [question.subject && tr(question.subject), question.topic && tr(question.topic)].filter(Boolean).join(', ')), timer, left),
           el('p', { class: 'flavour' }, tr(gate.flavour)),
-          el('h2', {}, question.prompt, ' ', listen),
+          el('h2', { class: 'whitespace-pre-line' }, question.prompt, ' ', listen),
           notes,
           control.node,
           status,

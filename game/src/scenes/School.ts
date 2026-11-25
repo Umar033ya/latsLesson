@@ -44,7 +44,7 @@ interface Thing {
 const WALK = 62;
 const RUN = 100;
 /** Time between two position reports in a room. */
-const SYNC_MS = 700;
+const SYNC_MS = 1000;
 const SYNC_RETRY_MS = 2500;
 const HW = 5;
 const HH = 3;
@@ -355,6 +355,7 @@ export class School extends Phaser.Scene {
 
   private buildLight() {
     this.occ = new Occluders(this, this.grid);
+    if (this.game.renderer.type !== Phaser.WEBGL) return;
     const cam = this.cameras.main;
     cam.setPostPipeline('Light');
     const p = cam.getPostPipeline('Light') as LightPipeline | LightPipeline[];

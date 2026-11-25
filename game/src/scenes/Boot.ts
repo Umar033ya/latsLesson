@@ -24,8 +24,10 @@ export class Boot extends Phaser.Scene {
   }
 
   create() {
-    const renderer = this.renderer as Phaser.Renderer.WebGL.WebGLRenderer;
-    renderer.pipelines.addPostPipeline('Light', LightPipeline);
+    if (this.game.renderer.type === Phaser.WEBGL) {
+      const renderer = this.renderer as Phaser.Renderer.WebGL.WebGLRenderer;
+      renderer.pipelines.addPostPipeline('Light', LightPipeline);
+    }
     const anim = (key: string, texture: string, start: number, rate: number) => this.anims.create({ key, frames: this.anims.generateFrameNumbers(texture, { start, end: start + 3 }), frameRate: rate, repeat: -1 });
     ['down', 'side', 'up'].forEach((d, i) => {
       anim(`walk_${d}`, 'player', i * 4, 8);

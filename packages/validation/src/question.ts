@@ -179,13 +179,13 @@ interface Translated {
 /** Text in the reader's language. Ids, order and correct answers never change, so grading is unaffected. */
 export function localizeQuestion<T extends { prompt: string; hint?: string | null; explanation?: string | null; options: unknown; translations?: unknown }>(q: T, locale: string): T {
   const tr = (q.translations as Record<string, Translated> | null | undefined)?.[locale];
-  if (!tr) return q;
-  const text = tr.options ?? {};
-  const list = (v: unknown) => (isChoiceList(v) ? v.map((o) => ({ ...o, text: text[o.id] || o.text })) : v);
+  const clean = (value: string | null | undefined) => value?.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n') ?? value;
+  const text = tr?.options ?? {};
+  const list = (v: unknown) => (isChoiceList(v) ? v.map((o) => ({ ...o, text: clean(text[o.id] || o.text)! })) : v);
   const o = q.options as { left?: unknown; right?: unknown; items?: unknown } | unknown[] | null;
   let options: unknown = q.options;
   if (Array.isArray(o)) options = list(o);
   else if (o && 'items' in o) options = { ...o, items: list(o.items) };
   else if (o && 'left' in o) options = { ...o, left: list(o.left), right: list(o.right) };
-  return { ...q, prompt: tr.prompt || q.prompt, hint: tr.hint || q.hint, explanation: tr.explanation || q.explanation, options };
+  return { ...q, prompt: clean(tr?.prompt || q.prompt)!, hint: clean(tr?.hint || q.hint), explanation: clean(tr?.explanation || q.explanation), options };
 }

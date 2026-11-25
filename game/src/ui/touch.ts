@@ -4,7 +4,7 @@ import { icon, type IconName } from './icons';
 
 export const touch = { x: 0, y: 0, run: false };
 /** Past the edge of the stick the pupil runs, which is loud. */
-const RUN_AT = 1.15;
+const RUN_AT = 0.82;
 const IDLE = 0.2;
 
 let layer: HTMLElement | null = null;
@@ -62,6 +62,7 @@ function stick() {
     knob.style.transform = '';
   };
   base.addEventListener('pointerdown', (e) => {
+    if (id !== null) return;
     id = e.pointerId;
     base.setPointerCapture(id);
     move(e);
